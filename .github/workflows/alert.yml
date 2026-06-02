@@ -1,0 +1,57 @@
+name: Trading Signal Alert
+
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  check-signal:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r idea/trading-tool/requirements.txt
+      
+      - name: Update settings.json with credentials
+        working-directory: idea/trading-tool
+        run: |
+          python3 << 'EOF'
+          import json
+          
+          # Load settings
+          with open('settings.json', 'r') as f:
+              settings = json.load(f)
+          
+          # Update with GitHub secrets
+          settings['telegram']['bot_token'] = '${{ secrets.TELEGRAM_BOT_TOKEN }}'
+          settings['telegram']['chat_id'] = '${{ secrets.TELEGRAM_CHAT_ID }}'
+          
+          # Save updated settings
+          with open('settings.json', 'w') as f:
+              json.dump(settings, f, indent=2)
+          EOF
+      
+      - name: Run signal check
+        working-directory: idea/trading-tool
+        run: python main.py
+      
+      - name: Commit state changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Trading Alert Bot"
+          git add -A
+          git commit -m "Update signal state [$(date +'%Y-%m-%d %H:%M:%S')]" || echo "No changes to commit"
+          git push || echo "Nothing to push"

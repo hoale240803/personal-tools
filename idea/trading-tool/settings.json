@@ -1,0 +1,14 @@
+{
+  "telegram": {
+    "bot_token": "",
+    "chat_id": ""
+  },
+  "api": {
+    "url": "https://data.signals.turtletrading.vn/api/liqheatmap/btc.json",
+    "timeout_seconds": 10
+  },
+  "signal": {
+    "direction_threshold_ratio": 1.2,
+    "alert_enabled": true
+  }
+}
