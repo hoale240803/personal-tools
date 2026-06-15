@@ -27,6 +27,7 @@ yarn-error.log*
 dist/
 build/
 out/
+.next/
 
 # Virtual environments
 .venv/
