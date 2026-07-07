@@ -1,7 +1,7 @@
-# Tạo 1 tools check job trên Craigslist:
+# Tạo 1 tools check job trên Craigslist/ ZipRecruiter
 
 - Nếu thấy job thỏa mãn các điều kiện dưới đây thì thông báo vào telegram chat or gửi mail về địa chỉ
-  trunglvleo@gmail.com
+  email vd: trunglvleo@gmail.com
 
 ## 1. Công việc cố định, ngắn hạn | Short-term job
 

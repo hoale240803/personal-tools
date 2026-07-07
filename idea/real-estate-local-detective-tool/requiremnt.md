@@ -7,5 +7,3 @@
 - Quản lý có bao nhiêu người xem
 - Bao nhiều người thả reaction
 - Bao nhiêu người comment
-
-4.

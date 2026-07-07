@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Bank QR Shortcut",
+  "version": "1.0",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "generate-qr": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Q"
+      },
+      "description": "Generate QR instantly"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "expense-management-app",
+  "private": true,
+  "workspaces": [
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "dev:web": "cd web && npm run dev",
+    "dev:api": "cd api && npm run dev",
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "build": "cd web && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
