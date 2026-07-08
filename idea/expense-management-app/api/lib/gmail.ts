@@ -3,7 +3,7 @@ import { getGmailClient } from './google'
 import type { SessionData } from './session'
 
 const PURCHASE_QUERY =
-  'category:purchases OR subject:(order OR "đơn hàng" OR "xác nhận" OR purchase OR shopee OR lazada) newer_than:30d'
+  'category:purchases OR subject:(order OR delivered OR shipped OR invoice OR billing OR payment OR subscription OR "đơn hàng" OR "xác nhận" OR purchase OR shopee OR lazada) newer_than:60d'
 
 function decodeBase64Url(data: string): string {
   const normalized = data.replace(/-/g, '+').replace(/_/g, '/')
@@ -67,9 +67,13 @@ export async function listPurchaseMessages(session: SessionData): Promise<GmailP
     maxResults: 20,
   })
 
+  const messageIds = list.data.messages ?? []
+  console.log(`[Gmail] Query: ${PURCHASE_QUERY}`)
+  console.log(`[Gmail] Found ${messageIds.length} messages`)
+
   const messages: GmailPurchaseMessage[] = []
 
-  for (const item of list.data.messages ?? []) {
+  for (const item of messageIds) {
     if (!item.id) continue
 
     const full = await gmail.users.messages.get({
@@ -83,11 +87,15 @@ export async function listPurchaseMessages(session: SessionData): Promise<GmailP
       ? new Date(Number(full.data.internalDate))
       : new Date()
 
+    const subject = getHeader(headers, 'Subject')
+    const receivedDate = internalDate.toISOString().slice(0, 10)
+    console.log(`[Gmail] Message id=${item.id} date=${receivedDate} subject="${subject}"`)
+
     messages.push({
       id: item.id,
-      receivedDate: internalDate.toISOString().slice(0, 10),
-      subject: getHeader(headers, 'Subject'),
-      body: `${getHeader(headers, 'Subject')}\n${extractBody(full.data.payload)}`,
+      receivedDate,
+      subject,
+      body: `${subject}\n${extractBody(full.data.payload)}`,
       imageUrl: extractImageUrl(full.data.payload),
     })
   }

@@ -1,6 +1,35 @@
+import { readFileSync, writeFileSync } from 'fs'
+import { resolve } from 'path'
 import { SignJWT, jwtVerify } from 'jose'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getEnv } from './env'
+
+const DEV_SESSION_PATH = resolve(process.cwd(), '..', '.dev-session.json')
+
+function isDevMode() {
+  return process.env.VERCEL_ENV !== 'production'
+}
+
+export function persistDevSession(session: SessionData): void {
+  if (!isDevMode()) return
+  try {
+    writeFileSync(DEV_SESSION_PATH, JSON.stringify(session, null, 2), 'utf-8')
+  } catch {
+    // ignore write errors silently
+  }
+}
+
+function loadDevSession(): SessionData | null {
+  if (!isDevMode()) return null
+  try {
+    const raw = readFileSync(DEV_SESSION_PATH, 'utf-8')
+    const data = JSON.parse(raw) as SessionData
+    if (!data.email || !data.accessToken || !data.refreshToken) return null
+    return data
+  } catch {
+    return null
+  }
+}
 
 const COOKIE_NAME = 'session'
 const MAX_AGE_SECONDS = 7 * 24 * 60 * 60
@@ -11,6 +40,7 @@ export interface SessionData {
   picture: string
   accessToken: string
   refreshToken: string
+  spreadsheetId: string
 }
 
 function getSecret() {
@@ -41,20 +71,24 @@ export async function createSessionToken(session: SessionData): Promise<string> 
 
 export async function readSession(req: VercelRequest): Promise<SessionData | null> {
   const token = parseCookies(req.headers.cookie)[COOKIE_NAME]
-  if (!token) return null
 
-  try {
-    const { payload } = await jwtVerify(token, getSecret())
-    return {
-      email: String(payload.email),
-      name: String(payload.name),
-      picture: String(payload.picture),
-      accessToken: String(payload.accessToken),
-      refreshToken: String(payload.refreshToken),
+  if (token) {
+    try {
+      const { payload } = await jwtVerify(token, getSecret())
+      return {
+        email: String(payload.email),
+        name: String(payload.name),
+        picture: String(payload.picture),
+        accessToken: String(payload.accessToken),
+        refreshToken: String(payload.refreshToken),
+        spreadsheetId: String(payload.spreadsheetId ?? ''),
+      }
+    } catch {
+      // JWT invalid or expired — fall through to dev session fallback
     }
-  } catch {
-    return null
   }
+
+  return loadDevSession()
 }
 
 export function setSessionCookie(res: VercelResponse, token: string) {
@@ -74,6 +108,7 @@ export function clearSessionCookie(res: VercelResponse) {
 }
 
 export function getAppOrigin(req: VercelRequest): string {
+  if (process.env.APP_ORIGIN) return process.env.APP_ORIGIN
   const host = req.headers['x-forwarded-host'] ?? req.headers.host ?? 'localhost:3000'
   const proto = req.headers['x-forwarded-proto'] ?? 'http'
   return `${proto}://${host}`

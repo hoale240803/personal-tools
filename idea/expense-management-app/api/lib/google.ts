@@ -35,13 +35,17 @@ export async function exchangeCodeForSession(code: string): Promise<SessionData>
     throw new Error('Google profile is missing email')
   }
 
-  return {
+  const partialSession: SessionData = {
     email: profile.email,
     name: profile.name ?? profile.email,
     picture: profile.picture ?? '',
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token,
+    spreadsheetId: '',
   }
+
+  const spreadsheetId = await findOrCreateSpreadsheet(partialSession)
+  return { ...partialSession, spreadsheetId }
 }
 
 export function getAuthedClient(session: SessionData) {
@@ -57,6 +61,43 @@ export function getSheetsClient(session: SessionData) {
   return google.sheets({ version: 'v4', auth: getAuthedClient(session) })
 }
 
+export function getDriveClient(session: SessionData) {
+  return google.drive({ version: 'v3', auth: getAuthedClient(session) })
+}
+
 export function getGmailClient(session: SessionData) {
   return google.gmail({ version: 'v1', auth: getAuthedClient(session) })
+}
+
+const SPREADSHEET_TITLE = 'Expense Tracker — Personal Tools'
+
+/**
+ * Finds the user's existing Expense Tracker spreadsheet by title in their Drive,
+ * or creates a new one if none exists. Returns the spreadsheet ID.
+ *
+ * Uses drive.file scope — only files created by this app are visible.
+ * Each user gets their own private spreadsheet stored in their Google Drive.
+ */
+export async function findOrCreateSpreadsheet(session: SessionData): Promise<string> {
+  const drive = getDriveClient(session)
+
+  const list = await drive.files.list({
+    q: `name='${SPREADSHEET_TITLE}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
+    fields: 'files(id,name)',
+    spaces: 'drive',
+  })
+
+  const existing = list.data.files?.[0]
+  if (existing?.id) return existing.id
+
+  const created = await drive.files.create({
+    requestBody: {
+      name: SPREADSHEET_TITLE,
+      mimeType: 'application/vnd.google-apps.spreadsheet',
+    },
+    fields: 'id',
+  })
+
+  if (!created.data.id) throw new Error('Failed to create spreadsheet in Google Drive')
+  return created.data.id
 }

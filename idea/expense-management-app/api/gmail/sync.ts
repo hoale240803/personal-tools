@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { parsePurchaseEmail } from '../lib/gemini'
+import { parsePurchaseEmailsBatch } from '../lib/gemini'
 import { listPurchaseMessages } from '../lib/gmail'
 import { methodNotAllowed, ok, serverError, unauthorized } from '../lib/response'
 import {
@@ -22,38 +22,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const existingIds = await getExistingMessageIds(session)
     const messages = await listPurchaseMessages(session)
 
+    const newMessages = messages.filter((m) => !existingIds.has(m.id))
+    const skippedExisting = messages.length - newMessages.length
+
+    console.log(
+      `[Sync] Total: ${messages.length} messages, ${skippedExisting} already synced, ${newMessages.length} new to process`,
+    )
+
     let synced = 0
-    let skipped = 0
+    let skipped = skippedExisting
 
-    for (const message of messages) {
-      if (existingIds.has(message.id)) {
-        skipped++
-        continue
+    if (newMessages.length > 0) {
+      const parsedResults = await parsePurchaseEmailsBatch(newMessages, categories)
+
+      for (let i = 0; i < newMessages.length; i++) {
+        const message = newMessages[i]
+        const parsed = parsedResults[i]
+
+        console.log(
+          `[Sync] Processing id=${message.id} subject="${message.subject}":`,
+          `isPurchaseEmail=${parsed.isPurchaseEmail} amount=${parsed.amount} ${parsed.currency}`,
+        )
+
+        if (!parsed.isPurchaseEmail) {
+          console.log(`[Sync] SKIP: Gemini says isPurchaseEmail=false`)
+          skipped++
+          continue
+        }
+
+        if (parsed.amount <= 0) {
+          console.log(`[Sync] SKIP: amount=${parsed.amount} (free trial or no charge)`)
+          skipped++
+          continue
+        }
+
+        await appendExpense(session, {
+          id: randomUUID(),
+          purchaseDate: message.receivedDate,
+          name: parsed.name || message.subject,
+          parentCategory: parsed.parentCategory,
+          category: `${parsed.parentCategory} > ${parsed.childCategory}`,
+          amount: parsed.amount,
+          platform: parsed.platform,
+          status: parsed.status,
+          orderId: parsed.orderId,
+          imageUrl: message.imageUrl,
+          gmailMessageId: message.id,
+          createdAt: new Date().toISOString(),
+        })
+
+        console.log(
+          `[Sync] SAVED: "${parsed.name || message.subject}" ${parsed.amount} ${parsed.currency}`,
+        )
+        existingIds.add(message.id)
+        synced++
       }
-
-      const parsed = await parsePurchaseEmail(message.body, categories)
-      if (!parsed.isPurchaseEmail || parsed.amount <= 0) {
-        skipped++
-        continue
-      }
-
-      await appendExpense(session, {
-        id: randomUUID(),
-        purchaseDate: message.receivedDate,
-        name: parsed.name || message.subject,
-        parentCategory: parsed.parentCategory,
-        category: `${parsed.parentCategory} > ${parsed.childCategory}`,
-        amount: parsed.amount,
-        platform: parsed.platform,
-        status: parsed.status,
-        orderId: parsed.orderId,
-        imageUrl: message.imageUrl,
-        gmailMessageId: message.id,
-        createdAt: new Date().toISOString(),
-      })
-
-      existingIds.add(message.id)
-      synced++
     }
 
     const lastSyncedAt = new Date().toISOString()

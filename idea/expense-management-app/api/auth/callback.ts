@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { exchangeCodeForSession } from '../lib/google'
 import { methodNotAllowed, serverError } from '../lib/response'
-import { createSessionToken, getAppOrigin, setSessionCookie } from '../lib/session'
+import { createSessionToken, getAppOrigin, persistDevSession, setSessionCookie } from '../lib/session'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return methodNotAllowed(res)
@@ -16,6 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const session = await exchangeCodeForSession(code)
     const token = await createSessionToken(session)
     setSessionCookie(res, token)
+    persistDevSession(session)
     res.redirect(302, `${getAppOrigin(req)}/`)
   } catch (error) {
     console.error(error)

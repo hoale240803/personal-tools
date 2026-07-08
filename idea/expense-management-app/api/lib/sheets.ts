@@ -3,7 +3,6 @@ import { getSheetsClient } from './google'
 import {
   CATEGORY_HEADERS,
   EXPENSE_HEADERS,
-  getEnv,
   SHEET_NAMES,
   SYNC_STATE_HEADERS,
 } from './env'
@@ -34,8 +33,9 @@ export interface CategoryParent {
   children: CategoryChild[]
 }
 
-function spreadsheetId() {
-  return getEnv('SPREADSHEET_ID')
+function spreadsheetId(session: SessionData): string {
+  if (!session.spreadsheetId) throw new Error('Session is missing spreadsheetId — please log out and log in again')
+  return session.spreadsheetId
 }
 
 function rowToExpense(cells: string[]): ExpenseRow {
@@ -57,7 +57,7 @@ function rowToExpense(cells: string[]): ExpenseRow {
 
 async function ensureSheetHeaders(session: SessionData) {
   const sheets = getSheetsClient(session)
-  const id = spreadsheetId()
+  const id = spreadsheetId(session)
 
   const meta = await sheets.spreadsheets.get({ spreadsheetId: id })
   const existing = new Set(meta.data.sheets?.map((s) => s.properties?.title) ?? [])
@@ -104,7 +104,7 @@ async function readExpenseRows(session: SessionData): Promise<ExpenseRow[]> {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
   const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(),
+    spreadsheetId: spreadsheetId(session),
     range: `${SHEET_NAMES.expenses}!A2:L`,
   })
 
@@ -160,7 +160,7 @@ export async function appendExpense(session: SessionData, expense: ExpenseRow) {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
   await sheets.spreadsheets.values.append({
-    spreadsheetId: spreadsheetId(),
+    spreadsheetId: spreadsheetId(session),
     range: `${SHEET_NAMES.expenses}!A:L`,
     valueInputOption: 'RAW',
     insertDataOption: 'INSERT_ROWS',
@@ -189,7 +189,7 @@ export async function getCategories(session: SessionData): Promise<CategoryParen
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
   const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(),
+    spreadsheetId: spreadsheetId(session),
     range: `${SHEET_NAMES.categories}!A2:D`,
   })
 
@@ -227,13 +227,13 @@ export async function saveCategories(session: SessionData, categories: CategoryP
   }
 
   await sheets.spreadsheets.values.clear({
-    spreadsheetId: spreadsheetId(),
+    spreadsheetId: spreadsheetId(session),
     range: `${SHEET_NAMES.categories}!A2:D`,
   })
 
   if (rows.length > 0) {
     await sheets.spreadsheets.values.update({
-      spreadsheetId: spreadsheetId(),
+      spreadsheetId: spreadsheetId(session),
       range: `${SHEET_NAMES.categories}!A2`,
       valueInputOption: 'RAW',
       requestBody: { values: rows },
@@ -245,7 +245,7 @@ export async function getSyncState(session: SessionData) {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
   const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(),
+    spreadsheetId: spreadsheetId(session),
     range: `${SHEET_NAMES.syncState}!A2:C`,
   })
 
@@ -259,7 +259,7 @@ export async function updateSyncState(session: SessionData, lastSyncedAt: string
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
   const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(),
+    spreadsheetId: spreadsheetId(session),
     range: `${SHEET_NAMES.syncState}!A2:C`,
   })
 
@@ -273,7 +273,7 @@ export async function updateSyncState(session: SessionData, lastSyncedAt: string
   }
 
   await sheets.spreadsheets.values.update({
-    spreadsheetId: spreadsheetId(),
+    spreadsheetId: spreadsheetId(session),
     range: `${SHEET_NAMES.syncState}!A2:C${rows.length + 1}`,
     valueInputOption: 'RAW',
     requestBody: { values: rows },
