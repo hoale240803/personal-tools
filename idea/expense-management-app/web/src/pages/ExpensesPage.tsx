@@ -1,11 +1,28 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Calendar, RefreshCw, Search, AlertCircle, X } from 'lucide-react'
+import { Calendar, RefreshCw, Search, AlertCircle, X, Plus, Pencil, Trash2 } from 'lucide-react'
 import { Pagination } from '../components/Pagination'
+import { PlatformIcon } from '../components/PlatformIcon'
+import { ExpenseFormModal } from '../components/ExpenseFormModal'
+import { DeleteConfirmModal } from '../components/DeleteConfirmModal'
 import { PAGE_SIZE } from '../constants'
-import { fetchExpenses, fetchGmailStatus, countGmailMessages, syncGmailExecute, type SyncDateRange } from '../lib/api'
+import {
+  fetchExpenses,
+  fetchGmailStatus,
+  countGmailMessages,
+  syncGmailExecute,
+  createExpense,
+  updateExpense,
+  deleteExpense,
+  type SyncDateRange,
+  type ExpenseFormData,
+} from '../lib/api'
 import type { Expense } from '../types'
 import { formatMonthLabel } from '../utils/expenseFilters'
 import { formatCurrency, formatDate, getStatusColor } from '../utils/format'
+
+function gmailUrl(messageId: string): string {
+  return `https://mail.google.com/mail/u/0/#inbox/${messageId}`
+}
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -72,6 +89,11 @@ export function ExpensesPage() {
   const [syncStartDate, setSyncStartDate] = useState('')
   const [syncEndDate, setSyncEndDate] = useState('')
   const [originalDateRange, setOriginalDateRange] = useState<SyncDateRange | undefined>(undefined)
+
+  // CRUD modal state
+  const [showFormModal, setShowFormModal] = useState(false)
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null)
 
   const monthValue = pickerDate.slice(0, 7)
   const dayValue = mode === 'day' ? pickerDate : undefined
@@ -167,6 +189,39 @@ export function ExpensesPage() {
     }
   }
 
+  // CRUD handlers
+  const handleAdd = () => {
+    setEditingExpense(null)
+    setShowFormModal(true)
+  }
+
+  const handleEdit = (expense: Expense) => {
+    setEditingExpense(expense)
+    setShowFormModal(true)
+  }
+
+  const handleDelete = (expense: Expense) => {
+    setDeletingExpense(expense)
+  }
+
+  const handleFormSave = async (data: ExpenseFormData) => {
+    if (editingExpense) {
+      await updateExpense(editingExpense.id, data)
+    } else {
+      await createExpense(data)
+    }
+    setShowFormModal(false)
+    setEditingExpense(null)
+    await loadExpenses()
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingExpense) return
+    await deleteExpense(deletingExpense.id)
+    setDeletingExpense(null)
+    await loadExpenses()
+  }
+
   const scopedLabel = mode === 'day'
     ? `Đồng bộ ${formatDateVN(pickerDate)}`
     : `Đồng bộ ${formatMonthLabel(monthValue)}`
@@ -187,15 +242,25 @@ export function ExpensesPage() {
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => handleSync(false)}
-          disabled={syncing}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
-        >
-          <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? 'Đang đồng bộ...' : 'Đồng bộ Gmail'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleAdd}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
+          >
+            <Plus className="h-4 w-4" />
+            Thêm
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSync(false)}
+            disabled={syncing}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
+          >
+            <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Đang đồng bộ...' : 'Đồng bộ Gmail'}
+          </button>
+        </div>
       </div>
 
       {syncMessage && (
@@ -281,19 +346,24 @@ export function ExpensesPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                  <th className="px-4 py-3 font-medium">Hình ảnh</th>
+                  <th className="px-4 py-3 font-medium">Platform</th>
                   <th className="px-4 py-3 font-medium">Ngày mua</th>
                   <th className="px-4 py-3 font-medium">Name</th>
                   <th className="px-4 py-3 font-medium">Danh mục</th>
                   <th className="px-4 py-3 font-medium">Chi phí</th>
-                  <th className="px-4 py-3 font-medium">Platform</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Order ID</th>
+                  <th className="px-4 py-3 font-medium text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {expenses.map((expense) => (
-                  <ExpenseRow key={expense.id} expense={expense} />
+                  <ExpenseRow
+                    key={expense.id}
+                    expense={expense}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
                 ))}
               </tbody>
             </table>
@@ -308,7 +378,12 @@ export function ExpensesPage() {
 
           <div className="space-y-3 lg:hidden">
             {expenses.map((expense) => (
-              <ExpenseCard key={expense.id} expense={expense} />
+              <ExpenseCard
+                key={expense.id}
+                expense={expense}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
             ))}
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               <Pagination
@@ -323,6 +398,7 @@ export function ExpensesPage() {
         </>
       )}
 
+      {/* Sync Warning Modal */}
       {showSyncWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl">
@@ -391,6 +467,27 @@ export function ExpensesPage() {
           </div>
         </div>
       )}
+
+      {/* Add/Edit Modal */}
+      {showFormModal && (
+        <ExpenseFormModal
+          expense={editingExpense}
+          onSave={handleFormSave}
+          onClose={() => {
+            setShowFormModal(false)
+            setEditingExpense(null)
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingExpense && (
+        <DeleteConfirmModal
+          expense={deletingExpense}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setDeletingExpense(null)}
+        />
+      )}
     </div>
   )
 }
@@ -427,33 +524,46 @@ function KpiCard({
   )
 }
 
-function ExpenseRow({ expense }: { expense: Expense }) {
+function ExpenseRow({
+  expense,
+  onEdit,
+  onDelete,
+}: {
+  expense: Expense
+  onEdit: (e: Expense) => void
+  onDelete: (e: Expense) => void
+}) {
   return (
     <tr className="border-b border-slate-100 transition hover:bg-slate-50/80">
       <td className="px-4 py-3">
-        {expense.imageUrl ? (
-          <img
-            src={expense.imageUrl}
-            alt={expense.name}
-            className="h-12 w-12 rounded-lg object-cover ring-1 ring-slate-200"
-          />
-        ) : (
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">
-            N/A
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <PlatformIcon platform={expense.platform} size={18} />
+          <span className="text-slate-600">{expense.platform}</span>
+        </div>
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-slate-600">
         {formatDate(expense.purchaseDate)}
       </td>
-      <td className="max-w-[220px] px-4 py-3 font-medium text-slate-900">{expense.name}</td>
+      <td className="max-w-[220px] px-4 py-3 font-medium text-slate-900">
+        {expense.gmailMessageId ? (
+          <a
+            href={gmailUrl(expense.gmailMessageId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="transition-colors hover:text-emerald-600 hover:underline"
+          >
+            {expense.name}
+          </a>
+        ) : (
+          expense.name
+        )}
+      </td>
       <td className="px-4 py-3">
         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
           {expense.category}
         </span>
       </td>
       <td className="px-4 py-3 font-semibold text-rose-600">{formatCurrency(expense.amount)}</td>
-      <td className="px-4 py-3 text-slate-600">{expense.platform}</td>
       <td className="px-4 py-3">
         <span
           className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${getStatusColor(expense.status)}`}
@@ -462,28 +572,59 @@ function ExpenseRow({ expense }: { expense: Expense }) {
         </span>
       </td>
       <td className="px-4 py-3 font-mono text-xs text-slate-500">{expense.orderId}</td>
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-center gap-1">
+          <button
+            type="button"
+            onClick={() => onEdit(expense)}
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-600"
+            title="Chỉnh sửa"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(expense)}
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+            title="Xóa"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </td>
     </tr>
   )
 }
 
-function ExpenseCard({ expense }: { expense: Expense }) {
+function ExpenseCard({
+  expense,
+  onEdit,
+  onDelete,
+}: {
+  expense: Expense
+  onEdit: (e: Expense) => void
+  onDelete: (e: Expense) => void
+}) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex gap-3">
-        {expense.imageUrl ? (
-          <img
-            src={expense.imageUrl}
-            alt={expense.name}
-            className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-slate-200"
-          />
-        ) : (
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs text-slate-400">
-            N/A
-          </div>
-        )}
+        <PlatformIcon platform={expense.platform} size={20} className="shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold text-slate-900">{expense.name}</h3>
+            <h3 className="font-semibold text-slate-900">
+              {expense.gmailMessageId ? (
+                <a
+                  href={gmailUrl(expense.gmailMessageId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="transition-colors hover:text-emerald-600 hover:underline"
+                >
+                  {expense.name}
+                </a>
+              ) : (
+                expense.name
+              )}
+            </h3>
             <span className="shrink-0 font-bold text-rose-600">{formatCurrency(expense.amount)}</span>
           </div>
           <p className="mt-1 text-xs text-slate-500">{formatDate(expense.purchaseDate)}</p>
@@ -500,7 +641,27 @@ function ExpenseCard({ expense }: { expense: Expense }) {
               {expense.status}
             </span>
           </div>
-          <p className="mt-2 font-mono text-xs text-slate-400">{expense.orderId}</p>
+          <div className="mt-2 flex items-center justify-between">
+            <p className="font-mono text-xs text-slate-400">{expense.orderId}</p>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onEdit(expense)}
+                className="rounded-lg p-1.5 text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-600"
+                title="Chỉnh sửa"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(expense)}
+                className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                title="Xóa"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </article>

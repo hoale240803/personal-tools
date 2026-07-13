@@ -11,6 +11,7 @@ export interface Expense {
   status: ExpenseStatus
   orderId: string
   imageUrl: string
+  gmailMessageId: string
 }
 
 export interface CategoryChild {

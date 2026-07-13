@@ -130,3 +130,34 @@ export function setupGmailWatch() {
   )
 }
 
+export interface ExpenseFormData {
+  name: string
+  purchaseDate: string
+  amount: number
+  parentCategory: string
+  category: string
+  platform: string
+  status: string
+  orderId: string
+  imageUrl: string
+}
+
+export function createExpense(data: ExpenseFormData) {
+  return request<Expense>('/api/expenses', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export function updateExpense(id: string, data: Partial<ExpenseFormData>) {
+  return request<Expense>('/api/expenses', {
+    method: 'PUT',
+    body: JSON.stringify({ id, ...data }),
+  })
+}
+
+export function deleteExpense(id: string) {
+  return request<{ deleted: boolean; id: string }>(`/api/expenses?id=${id}`, {
+    method: 'DELETE',
+  })
+}

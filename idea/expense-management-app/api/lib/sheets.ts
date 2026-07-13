@@ -237,6 +237,105 @@ export async function appendExpense(session: SessionData, expense: ExpenseRow) {
   })
 }
 
+export async function updateExpense(
+  session: SessionData,
+  id: string,
+  updates: Partial<Omit<ExpenseRow, 'id' | 'createdAt'>>,
+) {
+  await ensureSheetHeaders(session)
+  const sheets = getSheetsClient(session)
+  const sid = spreadsheetId(session)
+
+  const { data } = await sheets.spreadsheets.values.get({
+    spreadsheetId: sid,
+    range: `${SHEET_NAMES.expenses}!A2:L`,
+  })
+
+  const rows = data.values ?? []
+  const rowIndex = rows.findIndex((row) => String(row[0]) === id)
+  if (rowIndex < 0) throw new Error(`Expense not found: ${id}`)
+
+  const existing = rowToExpense(rows[rowIndex].map(String))
+  const updated: ExpenseRow = {
+    ...existing,
+    ...updates,
+    id: existing.id,
+    createdAt: existing.createdAt,
+  }
+
+  const sheetRow = rowIndex + 2 // +1 for header, +1 for 1-indexed
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: sid,
+    range: `${SHEET_NAMES.expenses}!A${sheetRow}:L${sheetRow}`,
+    valueInputOption: 'RAW',
+    requestBody: {
+      values: [
+        [
+          updated.id,
+          updated.purchaseDate,
+          updated.name,
+          updated.parentCategory,
+          updated.category,
+          updated.amount,
+          updated.platform,
+          updated.status,
+          updated.orderId,
+          updated.imageUrl,
+          updated.gmailMessageId,
+          updated.createdAt,
+        ],
+      ],
+    },
+  })
+
+  return updated
+}
+
+export async function deleteExpense(session: SessionData, id: string) {
+  await ensureSheetHeaders(session)
+  const sheets = getSheetsClient(session)
+  const sid = spreadsheetId(session)
+
+  // Get sheet metadata to find the sheetId for batchUpdate
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: sid })
+  const expensesSheet = meta.data.sheets?.find(
+    (s) => s.properties?.title === SHEET_NAMES.expenses,
+  )
+  if (!expensesSheet?.properties?.sheetId && expensesSheet?.properties?.sheetId !== 0) {
+    throw new Error('Expenses sheet not found')
+  }
+  const sheetId = expensesSheet.properties.sheetId
+
+  // Find the row index
+  const { data } = await sheets.spreadsheets.values.get({
+    spreadsheetId: sid,
+    range: `${SHEET_NAMES.expenses}!A2:A`,
+  })
+
+  const ids = (data.values ?? []).map((row) => String(row[0]))
+  const rowIndex = ids.indexOf(id)
+  if (rowIndex < 0) throw new Error(`Expense not found: ${id}`)
+
+  // Delete the row (rowIndex + 1 for header row offset)
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: sid,
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex + 1, // +1 for the header row
+              endIndex: rowIndex + 2,
+            },
+          },
+        },
+      ],
+    },
+  })
+}
+
 export async function getCategories(session: SessionData): Promise<CategoryParent[]> {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
