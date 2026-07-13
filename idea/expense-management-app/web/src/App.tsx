@@ -5,6 +5,7 @@ import { fetchCurrentUser, loginWithGoogle, logout } from './lib/api'
 import { ExpensesPage } from './pages/ExpensesPage'
 import { LoginPage } from './pages/LoginPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { SyncHistoryPage } from './pages/SyncHistoryPage'
 import type { UserProfile } from './types'
 
 function App() {
@@ -40,6 +41,7 @@ function App() {
       <AppLayout user={user} onLogout={handleLogout}>
         <Routes>
           <Route path="/" element={<ExpensesPage />} />
+          <Route path="/history" element={<SyncHistoryPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

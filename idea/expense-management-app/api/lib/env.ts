@@ -8,6 +8,20 @@ export function getEnvOptional(name: string): string | undefined {
   return process.env[name]
 }
 
+/**
+ * Returns the message count threshold above which the UI warns the user to narrow
+ * their sync date range (to avoid long-running serverless executions).
+ *
+ * Configure via env: SYNC_MESSAGE_THRESHOLD=25
+ * Set to -1 (or leave unset) to disable the threshold check entirely.
+ */
+export function getSyncMessageThreshold(): number {
+  const raw = process.env['SYNC_MESSAGE_THRESHOLD']
+  if (!raw) return -1
+  const parsed = parseInt(raw, 10)
+  return Number.isFinite(parsed) ? parsed : -1
+}
+
 export const GOOGLE_SCOPES = [
   'openid',
   'email',
@@ -21,6 +35,8 @@ export const SHEET_NAMES = {
   expenses: 'Expenses',
   categories: 'Categories',
   syncState: 'SyncState',
+  syncHistory: 'SyncHistory',
+  pendingQueue: 'PendingQueue',
 } as const
 
 export const EXPENSE_HEADERS = [
@@ -41,5 +57,31 @@ export const EXPENSE_HEADERS = [
 export const CATEGORY_HEADERS = ['parentId', 'parentName', 'childId', 'childName'] as const
 
 export const SYNC_STATE_HEADERS = ['userEmail', 'lastHistoryId', 'lastSyncedAt'] as const
+
+// syncId | userEmail | startDate | endDate | totalMessages | processedCount | successCount | failCount | errorMessages (JSON) | duration (ms) | syncType | syncedAt
+export const SYNC_HISTORY_HEADERS = [
+  'syncId',
+  'userEmail',
+  'startDate',
+  'endDate',
+  'totalMessages',
+  'processedCount',
+  'successCount',
+  'failCount',
+  'errorMessages',
+  'duration',
+  'syncType',
+  'syncedAt',
+] as const
+
+// messageId | userEmail | historyId | subject | queuedAt | status
+export const PENDING_QUEUE_HEADERS = [
+  'messageId',
+  'userEmail',
+  'historyId',
+  'subject',
+  'queuedAt',
+  'status',
+] as const
 
 export const DEFAULT_PAGE_SIZE = 20

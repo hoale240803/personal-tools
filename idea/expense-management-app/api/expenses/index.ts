@@ -21,12 +21,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return badRequest(res, 'Query param "month" must be YYYY-MM')
   }
 
+  const day = typeof req.query.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.day)
+    ? req.query.day
+    : undefined
   const page = Math.max(1, Number(req.query.page ?? 1))
   const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? DEFAULT_PAGE_SIZE)))
   const search = typeof req.query.search === 'string' ? req.query.search : undefined
 
   try {
-    const result = await getExpenses(session, { month, page, limit, search })
+    const result = await getExpenses(session, { month, day, page, limit, search })
     ok(res, result)
   } catch (error) {
     serverError(res, error)

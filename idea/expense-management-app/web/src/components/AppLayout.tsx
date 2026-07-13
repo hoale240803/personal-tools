@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutGrid, LogOut, Settings, Wallet } from 'lucide-react'
+import { LayoutGrid, LogOut, Settings, Wallet, History } from 'lucide-react'
 import type { UserProfile } from '../types'
 
 interface AppLayoutProps {
@@ -10,6 +10,7 @@ interface AppLayoutProps {
 
 const navItems = [
   { to: '/', label: 'Theo dõi chi phí', icon: Wallet },
+  { to: '/history', label: 'Lịch sử đồng bộ', icon: History },
   { to: '/settings', label: 'Cài đặt', icon: Settings },
 ]
 

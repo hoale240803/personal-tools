@@ -8,5 +8,11 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/gmail/watch",
+      "schedule": "0 0 */6 * *"
+    }
   ]
 }

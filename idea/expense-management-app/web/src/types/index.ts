@@ -29,3 +29,24 @@ export interface UserProfile {
   email: string
   avatarUrl: string
 }
+
+export interface SyncErrorItem {
+  messageId: string
+  subject: string
+  error: string
+}
+
+export interface SyncHistoryRecord {
+  syncId: string
+  userEmail: string
+  startDate: string
+  endDate: string
+  totalMessages: number
+  processedCount: number
+  successCount: number
+  failCount: number
+  errorMessages: SyncErrorItem[]
+  duration: number
+  syncType: 'manual' | 'pipeline'
+  syncedAt: string
+}

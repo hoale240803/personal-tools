@@ -3,7 +3,9 @@ import { getSheetsClient } from './google'
 import {
   CATEGORY_HEADERS,
   EXPENSE_HEADERS,
+  PENDING_QUEUE_HEADERS,
   SHEET_NAMES,
+  SYNC_HISTORY_HEADERS,
   SYNC_STATE_HEADERS,
 } from './env'
 
@@ -31,6 +33,36 @@ export interface CategoryParent {
   id: string
   name: string
   children: CategoryChild[]
+}
+
+export interface SyncErrorItem {
+  messageId: string
+  subject: string
+  error: string
+}
+
+export interface SyncHistoryRecord {
+  syncId: string
+  userEmail: string
+  startDate: string
+  endDate: string
+  totalMessages: number
+  processedCount: number
+  successCount: number
+  failCount: number
+  errorMessages: SyncErrorItem[]
+  duration: number
+  syncType: 'manual' | 'pipeline'
+  syncedAt: string
+}
+
+export interface PendingQueueItem {
+  messageId: string
+  userEmail: string
+  historyId: string
+  subject: string
+  queuedAt: string
+  status: 'pending' | 'processing' | 'done'
 }
 
 function spreadsheetId(session: SessionData): string {
@@ -72,6 +104,12 @@ async function ensureSheetHeaders(session: SessionData) {
   if (!existing.has(SHEET_NAMES.syncState)) {
     requests.push({ addSheet: { properties: { title: SHEET_NAMES.syncState } } })
   }
+  if (!existing.has(SHEET_NAMES.syncHistory)) {
+    requests.push({ addSheet: { properties: { title: SHEET_NAMES.syncHistory } } })
+  }
+  if (!existing.has(SHEET_NAMES.pendingQueue)) {
+    requests.push({ addSheet: { properties: { title: SHEET_NAMES.pendingQueue } } })
+  }
 
   if (requests.length > 0) {
     await sheets.spreadsheets.batchUpdate({
@@ -98,6 +136,18 @@ async function ensureSheetHeaders(session: SessionData) {
     valueInputOption: 'RAW',
     requestBody: { values: [SYNC_STATE_HEADERS as unknown as string[]] },
   })
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: id,
+    range: `${SHEET_NAMES.syncHistory}!A1:L1`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [SYNC_HISTORY_HEADERS as unknown as string[]] },
+  })
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: id,
+    range: `${SHEET_NAMES.pendingQueue}!A1:F1`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [PENDING_QUEUE_HEADERS as unknown as string[]] },
+  })
 }
 
 async function readExpenseRows(session: SessionData): Promise<ExpenseRow[]> {
@@ -115,10 +165,12 @@ async function readExpenseRows(session: SessionData): Promise<ExpenseRow[]> {
 
 export async function getExpenses(
   session: SessionData,
-  options: { month: string; page: number; limit: number; search?: string },
+  options: { month: string; day?: string; page: number; limit: number; search?: string },
 ) {
   const all = await readExpenseRows(session)
-  let filtered = all.filter((row) => row.purchaseDate.startsWith(options.month))
+  let filtered = all.filter((row) =>
+    options.day ? row.purchaseDate === options.day : row.purchaseDate.startsWith(options.month),
+  )
 
   if (options.search) {
     const q = options.search.toLowerCase()
@@ -279,3 +331,182 @@ export async function updateSyncState(session: SessionData, lastSyncedAt: string
     requestBody: { values: rows },
   })
 }
+
+// ─── SyncHistory ──────────────────────────────────────────────────────────────
+
+export async function appendSyncHistory(session: SessionData, record: SyncHistoryRecord) {
+  await ensureSheetHeaders(session)
+  const sheets = getSheetsClient(session)
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: spreadsheetId(session),
+    range: `${SHEET_NAMES.syncHistory}!A:L`,
+    valueInputOption: 'RAW',
+    insertDataOption: 'INSERT_ROWS',
+    requestBody: {
+      values: [
+        [
+          record.syncId,
+          record.userEmail,
+          record.startDate,
+          record.endDate,
+          record.totalMessages,
+          record.processedCount,
+          record.successCount,
+          record.failCount,
+          JSON.stringify(record.errorMessages),
+          record.duration,
+          record.syncType,
+          record.syncedAt,
+        ],
+      ],
+    },
+  })
+}
+
+export async function getSyncHistory(
+  session: SessionData,
+  limit = 50,
+): Promise<SyncHistoryRecord[]> {
+  await ensureSheetHeaders(session)
+  const sheets = getSheetsClient(session)
+  const { data } = await sheets.spreadsheets.values.get({
+    spreadsheetId: spreadsheetId(session),
+    range: `${SHEET_NAMES.syncHistory}!A2:L`,
+  })
+
+  const rows = (data.values ?? [])
+    .filter((row) => row[0] && row[1] === session.email)
+    .map((row) => {
+      let errorMessages: SyncErrorItem[] = []
+      try {
+        errorMessages = JSON.parse(String(row[8] ?? '[]'))
+      } catch {
+        errorMessages = []
+      }
+      return {
+        syncId: String(row[0] ?? ''),
+        userEmail: String(row[1] ?? ''),
+        startDate: String(row[2] ?? ''),
+        endDate: String(row[3] ?? ''),
+        totalMessages: Number(row[4] ?? 0),
+        processedCount: Number(row[5] ?? 0),
+        successCount: Number(row[6] ?? 0),
+        failCount: Number(row[7] ?? 0),
+        errorMessages,
+        duration: Number(row[9] ?? 0),
+        syncType: (String(row[10] ?? 'manual')) as SyncHistoryRecord['syncType'],
+        syncedAt: String(row[11] ?? ''),
+      } satisfies SyncHistoryRecord
+    })
+
+  // Return newest first, limited
+  return rows.reverse().slice(0, limit)
+}
+
+// ─── PendingQueue ─────────────────────────────────────────────────────────────
+
+export async function enqueuePendingMessage(
+  session: SessionData,
+  item: Pick<PendingQueueItem, 'messageId' | 'userEmail' | 'historyId' | 'subject'>,
+) {
+  await ensureSheetHeaders(session)
+  const sheets = getSheetsClient(session)
+
+  // Avoid duplicates: check if messageId already exists in queue
+  const { data } = await sheets.spreadsheets.values.get({
+    spreadsheetId: spreadsheetId(session),
+    range: `${SHEET_NAMES.pendingQueue}!A2:F`,
+  })
+  const exists = (data.values ?? []).some(
+    (row) => String(row[0]) === item.messageId && String(row[4]) !== 'done',
+  )
+  if (exists) {
+    console.log(`[PendingQueue] messageId=${item.messageId} already queued, skipping`)
+    return
+  }
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: spreadsheetId(session),
+    range: `${SHEET_NAMES.pendingQueue}!A:F`,
+    valueInputOption: 'RAW',
+    insertDataOption: 'INSERT_ROWS',
+    requestBody: {
+      values: [
+        [
+          item.messageId,
+          item.userEmail,
+          item.historyId,
+          item.subject,
+          new Date().toISOString(),
+          'pending',
+        ],
+      ],
+    },
+  })
+  console.log(`[PendingQueue] Enqueued messageId=${item.messageId} for ${item.userEmail}`)
+}
+
+export async function getPendingMessages(
+  session: SessionData,
+  userEmail: string,
+): Promise<PendingQueueItem[]> {
+  await ensureSheetHeaders(session)
+  const sheets = getSheetsClient(session)
+  const { data } = await sheets.spreadsheets.values.get({
+    spreadsheetId: spreadsheetId(session),
+    range: `${SHEET_NAMES.pendingQueue}!A2:F`,
+  })
+
+  return (data.values ?? [])
+    .filter((row) => String(row[1]) === userEmail && String(row[5]) === 'pending')
+    .map((row) => ({
+      messageId: String(row[0] ?? ''),
+      userEmail: String(row[1] ?? ''),
+      historyId: String(row[2] ?? ''),
+      subject: String(row[3] ?? ''),
+      queuedAt: String(row[4] ?? ''),
+      status: 'pending' as const,
+    }))
+}
+
+export async function countPendingMessages(
+  session: SessionData,
+  userEmail: string,
+): Promise<number> {
+  const items = await getPendingMessages(session, userEmail)
+  return items.length
+}
+
+export async function markPendingMessagesProcessed(
+  session: SessionData,
+  messageIds: string[],
+) {
+  if (messageIds.length === 0) return
+  await ensureSheetHeaders(session)
+  const sheets = getSheetsClient(session)
+
+  const { data } = await sheets.spreadsheets.values.get({
+    spreadsheetId: spreadsheetId(session),
+    range: `${SHEET_NAMES.pendingQueue}!A2:F`,
+  })
+
+  const rows = data.values ?? []
+  const idSet = new Set(messageIds)
+  const updatedRows = rows.map((row) => {
+    if (idSet.has(String(row[0]))) {
+      return [row[0], row[1], row[2], row[3], row[4], 'done']
+    }
+    return row
+  })
+
+  if (updatedRows.length > 0) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.pendingQueue}!A2:F${updatedRows.length + 1}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: updatedRows },
+    })
+  }
+  console.log(`[PendingQueue] Marked ${messageIds.length} messages as done`)
+}
+

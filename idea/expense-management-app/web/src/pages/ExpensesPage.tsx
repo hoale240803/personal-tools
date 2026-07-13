@@ -1,14 +1,58 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Calendar, RefreshCw, Search } from 'lucide-react'
+import { Calendar, RefreshCw, Search, AlertCircle, X } from 'lucide-react'
 import { Pagination } from '../components/Pagination'
 import { PAGE_SIZE } from '../constants'
-import { fetchExpenses, fetchGmailStatus, syncGmail } from '../lib/api'
+import { fetchExpenses, fetchGmailStatus, countGmailMessages, syncGmailExecute, type SyncDateRange } from '../lib/api'
 import type { Expense } from '../types'
-import { formatMonthLabel, getCurrentMonthValue } from '../utils/expenseFilters'
+import { formatMonthLabel } from '../utils/expenseFilters'
 import { formatCurrency, formatDate, getStatusColor } from '../utils/format'
 
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function addOneDay(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString().slice(0, 10)
+}
+
+function firstDayOfNextMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  const d = new Date(Date.UTC(y, m, 1))
+  return d.toISOString().slice(0, 10)
+}
+
+/**
+ * Convert a YYYY-MM-DD date string to epoch seconds at midnight in the user's local timezone.
+ * This ensures Gmail API queries align with the dates the user sees in their browser.
+ */
+function dateToLocalEpoch(dateStr: string): number {
+  // new Date('YYYY-MM-DD') parses as UTC; we want local midnight instead
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return Math.floor(new Date(y, m - 1, d).getTime() / 1000)
+}
+
+/**
+ * Build a SyncDateRange from a start date and end date (YYYY-MM-DD strings).
+ * Epochs are calculated at local midnight to match the user's timezone.
+ */
+function buildDateRange(startDate: string, endDate: string): SyncDateRange {
+  return {
+    afterEpoch: dateToLocalEpoch(startDate),
+    beforeEpoch: dateToLocalEpoch(endDate),
+  }
+}
+
+function formatDateVN(dateStr: string): string {
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC',
+  }).format(new Date(dateStr))
+}
+
 export function ExpensesPage() {
-  const [monthValue, setMonthValue] = useState(getCurrentMonthValue)
+  const [pickerDate, setPickerDate] = useState(todayIso)
+  const [mode, setMode] = useState<'month' | 'day'>('month')
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -22,6 +66,16 @@ export function ExpensesPage() {
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
 
+  // Sync warning modal state
+  const [showSyncWarning, setShowSyncWarning] = useState(false)
+  const [syncCount, setSyncCount] = useState(0)
+  const [syncStartDate, setSyncStartDate] = useState('')
+  const [syncEndDate, setSyncEndDate] = useState('')
+  const [originalDateRange, setOriginalDateRange] = useState<SyncDateRange | undefined>(undefined)
+
+  const monthValue = pickerDate.slice(0, 7)
+  const dayValue = mode === 'day' ? pickerDate : undefined
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300)
     return () => clearTimeout(timer)
@@ -29,7 +83,7 @@ export function ExpensesPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [monthValue, debouncedSearch])
+  }, [pickerDate, mode, debouncedSearch])
 
   const loadExpenses = useCallback(async () => {
     setLoading(true)
@@ -37,6 +91,7 @@ export function ExpensesPage() {
     try {
       const result = await fetchExpenses({
         month: monthValue,
+        day: dayValue,
         page,
         limit: PAGE_SIZE,
         search: debouncedSearch,
@@ -50,7 +105,7 @@ export function ExpensesPage() {
     } finally {
       setLoading(false)
     }
-  }, [monthValue, page, debouncedSearch])
+  }, [monthValue, dayValue, page, debouncedSearch])
 
   useEffect(() => {
     loadExpenses()
@@ -62,11 +117,46 @@ export function ExpensesPage() {
       .catch(() => {})
   }, [])
 
-  const handleSync = async () => {
+  const handleSync = async (scoped = false) => {
     setSyncing(true)
     setSyncMessage(null)
     try {
-      const result = await syncGmail()
+      const dateRange = scoped
+        ? mode === 'day'
+          ? buildDateRange(pickerDate, addOneDay(pickerDate))
+          : buildDateRange(`${monthValue}-01`, firstDayOfNextMonth(monthValue))
+        : undefined
+
+      const countResult = await countGmailMessages(dateRange)
+      if (countResult.exceedsThreshold) {
+        setSyncCount(countResult.count)
+        // Pre-fill the warning modal's date inputs with the scoped dates
+        if (scoped) {
+          setSyncStartDate(mode === 'day' ? pickerDate : `${monthValue}-01`)
+          setSyncEndDate(mode === 'day' ? addOneDay(pickerDate) : firstDayOfNextMonth(monthValue))
+        } else {
+          setSyncStartDate('')
+          setSyncEndDate('')
+        }
+        setOriginalDateRange(dateRange)
+        setShowSyncWarning(true)
+        setSyncing(false)
+        return
+      }
+
+      await executeSync(dateRange)
+    } catch (err) {
+      setSyncMessage(err instanceof Error ? err.message : 'Lỗi kiểm tra đồng bộ')
+      setSyncing(false)
+    }
+  }
+
+  const executeSync = async (dateRange?: SyncDateRange) => {
+    setSyncing(true)
+    setSyncMessage(null)
+    setShowSyncWarning(false)
+    try {
+      const result = await syncGmailExecute(dateRange)
       setLastSyncedAt(result.lastSyncedAt)
       setSyncMessage(`Đã đồng bộ ${result.synced} email mới, bỏ qua ${result.skipped}.`)
       await loadExpenses()
@@ -76,6 +166,12 @@ export function ExpensesPage() {
       setSyncing(false)
     }
   }
+
+  const scopedLabel = mode === 'day'
+    ? `Đồng bộ ${formatDateVN(pickerDate)}`
+    : `Đồng bộ ${formatMonthLabel(monthValue)}`
+
+  const periodLabel = mode === 'day' ? formatDateVN(pickerDate) : formatMonthLabel(monthValue)
 
   return (
     <div className="space-y-6">
@@ -93,7 +189,7 @@ export function ExpensesPage() {
         </div>
         <button
           type="button"
-          onClick={handleSync}
+          onClick={() => handleSync(false)}
           disabled={syncing}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
         >
@@ -109,22 +205,43 @@ export function ExpensesPage() {
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-          <Calendar className="h-4 w-4 text-emerald-600" />
-          <span className="text-sm font-medium text-slate-700">Tháng:</span>
-          <input
-            type="month"
-            value={monthValue}
-            onChange={(e) => setMonthValue(e.target.value)}
-            className="border-0 bg-transparent text-sm text-slate-900 outline-none"
-          />
-        </label>
-        <p className="text-sm text-slate-500">{formatMonthLabel(monthValue)}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+            <Calendar className="h-4 w-4 text-emerald-600" />
+            <input
+              type="date"
+              value={pickerDate}
+              onChange={(e) => { if (e.target.value) setPickerDate(e.target.value) }}
+              className="border-0 bg-transparent text-sm text-slate-900 outline-none"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => setMode(mode === 'day' ? 'month' : 'day')}
+            className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
+              mode === 'day'
+                ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            {mode === 'day' ? '📅 Theo ngày' : '🗓 Theo tháng'}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSync(true)}
+            disabled={syncing}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-medium text-sky-700 transition hover:bg-sky-100 disabled:opacity-60"
+          >
+            <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
+            {scopedLabel}
+          </button>
+        </div>
+        <p className="text-sm text-slate-500">{periodLabel}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <KpiCard
-          label={`Tổng chi ${formatMonthLabel(monthValue).toLowerCase()}`}
+          label={`Tổng chi ${periodLabel.toLowerCase()}`}
           value={formatCurrency(summary.totalAmount)}
           tone="red"
         />
@@ -157,7 +274,7 @@ export function ExpensesPage() {
           Đang tải dữ liệu...
         </div>
       ) : total === 0 ? (
-        <EmptyState monthValue={monthValue} />
+        <EmptyState label={periodLabel} />
       ) : (
         <>
           <div className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:block">
@@ -205,14 +322,83 @@ export function ExpensesPage() {
           </div>
         </>
       )}
+
+      {showSyncWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div className="flex items-center gap-2 text-rose-600">
+                <AlertCircle className="h-5 w-5" />
+                <h3 className="font-semibold">Khối lượng dữ liệu lớn</h3>
+              </div>
+              <button
+                onClick={() => setShowSyncWarning(false)}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="mb-4 text-sm text-slate-600">
+                Tìm thấy <strong className="text-slate-900">{syncCount}</strong> email mua hàng trong khoảng thời gian này.
+                Quá trình phân tích bằng AI có thể mất nhiều thời gian hoặc timeout.
+                Vui lòng thu hẹp khoảng thời gian đồng bộ để xử lý nhanh hơn.
+              </p>
+
+              <div className="mb-6 flex items-center gap-3">
+                <div className="flex-1">
+                  <label className="mb-1.5 block text-xs font-medium text-slate-700">Từ ngày</label>
+                  <input
+                    type="date"
+                    value={syncStartDate}
+                    onChange={(e) => setSyncStartDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+                <div className="pt-5 text-slate-300">-</div>
+                <div className="flex-1">
+                  <label className="mb-1.5 block text-xs font-medium text-slate-700">Đến ngày</label>
+                  <input
+                    type="date"
+                    value={syncEndDate}
+                    onChange={(e) => setSyncEndDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
+                <button
+                  onClick={() => executeSync(originalDateRange)}
+                  className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+                >
+                  Vẫn đồng bộ tất cả
+                </button>
+                <button
+                  onClick={() =>
+                    executeSync(
+                      syncStartDate && syncEndDate
+                        ? buildDateRange(syncStartDate, syncEndDate)
+                        : originalDateRange
+                    )
+                  }
+                  className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700"
+                >
+                  Xác nhận đồng bộ
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function EmptyState({ monthValue }: { monthValue: string }) {
+function EmptyState({ label }: { label: string }) {
   return (
     <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-      <p className="font-medium text-slate-700">Không có giao dịch trong {formatMonthLabel(monthValue)}</p>
+      <p className="font-medium text-slate-700">Không có giao dịch trong {label}</p>
       <p className="mt-1 text-sm text-slate-500">Bấm &quot;Đồng bộ Gmail&quot; để import email mua hàng.</p>
     </div>
   )

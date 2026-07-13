@@ -54,7 +54,7 @@ function defaultResult(): ParsedPurchaseEmail {
 export async function parsePurchaseEmailsBatch(
   emails: EmailInput[],
   categories: CategoryParent[],
-  batchSize = 10,
+  batchSize = 5,
 ): Promise<ParsedPurchaseEmail[]> {
   if (emails.length === 0) return []
 
@@ -74,7 +74,7 @@ export async function parsePurchaseEmailsBatch(
     const emailsSection = batch
       .map(
         (email, idx) =>
-          `[${idx}] Subject: "${email.subject}"\nBody:\n${email.body.slice(0, 2500)}`,
+          `[${idx}] Subject: "${email.subject}"\nBody:\n${email.body.slice(0, 8000)}`,
       )
       .join('\n\n---\n\n')
 
@@ -96,8 +96,8 @@ Schema của mỗi object:
 
 Quy tắc:
 - isPurchaseEmail=true nếu email liên quan đến: xác nhận đơn hàng, giao hàng, thanh toán (dù thành công hay thất bại), đăng ký dịch vụ có phí, hóa đơn, invoice.
-- isPurchaseEmail=false khi email hoàn toàn không liên quan đến chi tiêu (marketing thuần túy, newsletter, khuyến mãi chưa mua, v.v.).
-- amount là số tiền thực tế trong email (USD, VND, EUR...), trả về số thực không có ký hiệu tiền tệ. Nếu là free trial hoặc không có số tiền cụ thể thì trả về 0.
+- isPurchaseEmail=false khi: email hoàn toàn không liên quan đến chi tiêu (marketing thuần túy, newsletter, khuyến mãi chưa mua, v.v.), hoặc email là hoàn tiền / reimbursement / refund / cashback (tiền trả lại cho người dùng, không phải chi tiêu).
+- amount là số tiền thực tế trong email (USD, VND, EUR...), trả về số thực không có ký hiệu tiền tệ. Nếu là free trial nhưng email có đề cập số tiền sẽ bị charge khi renewal (ví dụ "$14.99/month after trial") thì lấy số tiền đó. Chỉ trả về 0 khi email hoàn toàn không đề cập bất kỳ số tiền nào.
 - currency là mã tiền tệ (VND, USD, EUR...). Nếu không rõ thì để "".
 - Chọn parentCategory và childCategory từ danh sách user cấu hình. Nếu không khớp, dùng "Mua sắm" và "Khác".
 - status suy luận từ nội dung email: "Đã giao" nếu delivered, "Đang giao" nếu shipped/on the way, "Đã hủy" nếu cancelled, "Chờ xử lý" cho các trường hợp còn lại (payment failed, processing, pending...).
@@ -112,21 +112,28 @@ ${emailsSection}`
       `[Gemini] Batch ${batchNum}/${totalBatches}: sending ${batch.length} emails (ids: ${batch.map((e) => e.id).join(', ')})`,
     )
 
-    const result = await model.generateContent(prompt)
-    const text = result.response.text()
-
-    console.log(`[Gemini] Batch ${batchNum}/${totalBatches} raw response:`, text)
-
-    let parsed: Partial<ParsedPurchaseEmail>[]
+    let parsed: Partial<ParsedPurchaseEmail>[] = []
     try {
-      parsed = JSON.parse(text)
-      if (!Array.isArray(parsed)) {
-        console.warn(`[Gemini] Batch ${batchNum}: response is not an array, wrapping`)
-        parsed = [parsed]
+      const result = await model.generateContent(prompt)
+      const text = result.response.text()
+
+      console.log(`[Gemini] Batch ${batchNum}/${totalBatches} raw response:`, text)
+
+      try {
+        parsed = JSON.parse(text)
+        if (!Array.isArray(parsed)) {
+          console.warn(`[Gemini] Batch ${batchNum}: response is not an array, wrapping`)
+          parsed = [parsed]
+        }
+      } catch (err) {
+        console.error(`[Gemini] Batch ${batchNum}: failed to parse JSON response`, err)
+        parsed = []
       }
     } catch (err) {
-      console.error(`[Gemini] Batch ${batchNum}: failed to parse JSON response`, err)
-      parsed = []
+      console.error(
+        `[Gemini] Batch ${batchNum}/${totalBatches} failed (will retry on next sync):`,
+        err,
+      )
     }
 
     for (let j = 0; j < batch.length; j++) {

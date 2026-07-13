@@ -1,4 +1,4 @@
-import type { CategoryParent, Expense, UserProfile } from '../types'
+import type { CategoryParent, Expense, SyncHistoryRecord, UserProfile } from '../types'
 
 interface ApiResponse<T> {
   data: T | null
@@ -18,10 +18,18 @@ interface ExpensesResult {
   }
 }
 
-interface SyncResult {
+interface SyncCountResult {
+  count: number
+  threshold: number
+  exceedsThreshold: boolean
+}
+
+interface SyncExecuteResult {
   synced: number
   skipped: number
+  failCount: number
   lastSyncedAt: string
+  duration: number
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -54,6 +62,7 @@ export async function logout() {
 
 export function fetchExpenses(params: {
   month: string
+  day?: string
   page: number
   limit: number
   search?: string
@@ -63,6 +72,7 @@ export function fetchExpenses(params: {
     page: String(params.page),
     limit: String(params.limit),
   })
+  if (params.day) query.set('day', params.day)
   if (params.search?.trim()) query.set('search', params.search.trim())
 
   return request<ExpensesResult>(`/api/expenses?${query}`)
@@ -79,10 +89,44 @@ export function saveCategories(categories: CategoryParent[]) {
   })
 }
 
-export function syncGmail() {
-  return request<SyncResult>('/api/gmail/sync', { method: 'POST' })
+export interface SyncDateRange {
+  afterEpoch: number
+  beforeEpoch: number
+}
+
+/** Step 1: Count messages only — fast, no body fetch */
+export function countGmailMessages(dateRange?: SyncDateRange) {
+  return request<SyncCountResult>('/api/gmail/sync', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'count', ...dateRange }),
+  })
+}
+
+/** Step 2: Full sync — fetch bodies, parse with Gemini, save to Sheets */
+export function syncGmailExecute(dateRange?: SyncDateRange) {
+  return request<SyncExecuteResult>('/api/gmail/sync', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'execute', ...dateRange }),
+  })
+}
+
+/** @deprecated Use countGmailMessages + syncGmailExecute instead */
+export function syncGmail(dateRange?: SyncDateRange) {
+  return syncGmailExecute(dateRange)
 }
 
 export function fetchGmailStatus() {
   return request<{ lastSyncedAt: string | null }>('/api/gmail/status')
 }
+
+export function fetchSyncHistory() {
+  return request<SyncHistoryRecord[]>('/api/gmail/history')
+}
+
+export function setupGmailWatch() {
+  return request<{ historyId: string; expiration: string; message: string }>(
+    '/api/gmail/watch',
+    { method: 'POST' },
+  )
+}
+

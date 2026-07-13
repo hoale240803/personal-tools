@@ -69,6 +69,25 @@ export async function createSessionToken(session: SessionData): Promise<string> 
     .sign(getSecret())
 }
 
+/**
+ * Looks up the session for a given email address.
+ * Used by the Pub/Sub webhook where there is no request cookie available.
+ *
+ * In dev: reads .dev-session.json (single-user tool).
+ * In production: reads from the dev session file as a fallback for a personal tool.
+ * For multi-user support, extend this with a server-side session store.
+ */
+export async function readSessionByEmail(email: string): Promise<SessionData | null> {
+  const dev = loadDevSession()
+  if (dev && dev.email === email) return dev
+
+  // Production: no server-side session store — webhook only processes for
+  // the session owner whose token was used to call /api/gmail/watch.
+  // Extend here if multi-user support is needed.
+  console.warn(`[Session] No session found for ${email} (webhook requires active session)`)
+  return null
+}
+
 export async function readSession(req: VercelRequest): Promise<SessionData | null> {
   const token = parseCookies(req.headers.cookie)[COOKIE_NAME]
 

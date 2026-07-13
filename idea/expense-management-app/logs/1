@@ -1,0 +1,421 @@
+[0] [2026-07-10T03:16:50.803Z] GET /api/expenses?month=2026-06&page=1&limit=20
+[0] [2026-07-10T03:16:54.627Z] POST /api/gmail/sync
+[0] [Gmail] Query: category:purchases OR subject:(order OR delivered OR shipped OR invoice OR billing OR payment OR subscription OR "đơn hàng" OR "xác nhận" OR purchase OR shopee OR lazada) newer_than:60d
+[0] [Gmail] Found 20 messages
+[0] [Gmail] Message id=19f49847251ba843 date=2026-07-10 subject="Payment will be returned as Credit Back !" from="Temu <email@news.temuemail.com>"
+[0] [Gmail] Message id=19f3f37b6a2514e4 date=2026-07-08 subject="Thanks for your order" from="Temu <email@news.temuemail.com>"
+[0] [Gmail] Message id=19f3a110f7b19df5 date=2026-07-07 subject="Thank you for your order" from="Temu <email@news.temuemail.com>"
+[0] [Gmail] Message id=19f381cecfd54fe2 date=2026-07-06 subject="Delivered: "LED Flying Disc with..."" from=""Amazon.com" <order-update@amazon.com>"
+[0] [Gmail] Message id=19f34eaeca335047 date=2026-07-06 subject="Thanks for your order" from="Temu <email@news.temuemail.com>"
+[0] [Gmail] Message id=19f33df5406b70b8 date=2026-07-05 subject="Shipped: "LED Flying Disc with..."" from=""Amazon.com" <shipment-tracking@amazon.com>"
+[0] [Gmail] Message id=19f33df4d9072311 date=2026-07-05 subject="Couldn't process payment" from="Cursor <hi@cursor.com>"
+[0] [Gmail] Message id=19f33df4b65e7190 date=2026-07-05 subject="$20.00 payment to Cursor was unsuccessful" from="Cursor <failed-payments+acct_1Lb5LzB4TZWxSIGU@stripe.com>"
+[0] [Gmail] Message id=19f323aa6a45d7f5 date=2026-07-05 subject="Your credit card payment is scheduled" from="Chase <no.reply.alerts@chase.com>"
+[0] [Gmail] Message id=19f30b99fc1aa025 date=2026-07-05 subject="Share feedback on your recent purchase" from="CHANEL <notifications@customercontent-us.chanel.com>"
+[0] [Gmail] Message id=19f30744f864cabf date=2026-07-05 subject="Welcome to Prime!" from="Amazon Prime <prime@amazon.com>"
+[0] [Gmail] Message id=19f307055b39827c date=2026-07-05 subject="Your Summer Vibe 😎 Delivered FREE ✨" from="SHEIN <shein@news.emailmarket.shein.com>"
+[0] [Gmail] Message id=19f306fd1b98f9db date=2026-07-05 subject="Ordered: "LED Flying Disc with..."" from=""Amazon.com" <auto-confirm@amazon.com>"
+[0] [Gmail] Message id=19f306fbaf72d6f7 date=2026-07-05 subject="Make the most of Alexa+" from="Amazon Alexa <account-update@amazon.com>"
+[0] [Gmail] Message id=19f2fc4b3b8c8784 date=2026-07-05 subject="Thank you for your order" from="Temu <email@news.temuemail.com>"
+[0] [Gmail] Message id=19f2e7ad49a970af date=2026-07-04 subject="Your previous purchase has received $9.77 reimbursement." from="Temu <email@news.temuemail.com>"
+[0] [Gmail] Message id=19f288d6da20f953 date=2026-07-03 subject="Review your recent Walmart purchase" from="Walmart Reviews <feedback@reviews.walmart.com>"
+[0] [Gmail] Message id=19f1e779a735d95e date=2026-07-01 subject="Limited time: Get 50% off 1 DoorDash order with DashPass" from=""Chase Freedom®" <no_reply@mcmap.chase.com>"
+[0] [Gmail] Message id=19f1a6198bfea29c date=2026-06-30 subject="Order 8212443504103636: how did it go?" from="AliExpress <transaction@notice.aliexpress.com>"
+[0] [Gmail] Message id=19f19e15685082ae date=2026-06-30 subject="Thanks for your order" from="Temu <email@news.temuemail.com>"
+[0] [Sync] Total: 20 messages, 2 already synced, 18 new to process
+[0] [Gemini] Batch 1/2: sending 10 emails (ids: 19f49847251ba843, 19f3f37b6a2514e4, 19f3a110f7b19df5, 19f381cecfd54fe2, 19f34eaeca335047, 19f33df4d9072311, 19f323aa6a45d7f5, 19f30b99fc1aa025, 19f30744f864cabf, 19f307055b39827c)
+[0] [Gemini] Batch 1/2 raw response: [
+[0]   {
+[0]     "isPurchaseEmail": false,
+[0]     "name": "Temu",
+[0]     "amount": 0,
+[0]     "currency": "",
+[0]     "platform": "Temu",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": true,
+[0]     "name": "Temu",
+[0]     "amount": 0,
+[0]     "currency": "",
+[0]     "platform": "Temu",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": true,
+[0]     "name": "Temu",
+[0]     "amount": 0,
+[0]     "currency": "",
+[0]     "platform": "Temu",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": true,
+[0]     "name": "Amazon",
+[0]     "amount": 0,
+[0]     "currency": "",
+[0]     "platform": "Amazon",
+[0]     "status": "Đã giao",
+[0]     "orderId": "113-8904501-8536268",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": true,
+[0]     "name": "Temu",
+[0]     "amount": 0,
+[0]     "currency": "",
+[0]     "platform": "Temu",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": true,
+[0]     "name": "Cursor",
+[0]     "amount": 0,
+[0]     "currency": "",
+[0]     "platform": "Cursor",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "",
+[0]     "parentCategory": "Dịch vụ",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": true,
+[0]     "name": "Adobe",
+[0]     "amount": 0,
+[0]     "currency": "",
+[0]     "platform": "Adobe",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "",
+[0]     "parentCategory": "Dịch vụ",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": false,
+[0]     "name": "Chanel",
+[0]     "amount": 0,
+[0]     "currency": "",
+[0]     "platform": "Chanel",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": true,
+[0]     "name": "Amazon",
+[0]     "amount": 14.99,
+[0]     "currency": "USD",
+[0]     "platform": "Amazon",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "",
+[0]     "parentCategory": "Dịch vụ",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": true,
+[0]     "name": "SHEIN",
+[0]     "amount": 0,
+[0]     "currency": "",
+[0]     "platform": "SHEIN",
+[0]     "status": "Đã giao",
+[0]     "orderId": "",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   }
+[0] ]
+[0] [Gemini] Batch 1[0] id=19f49847251ba843: {
+[0]   isPurchaseEmail: false,
+[0]   name: 'Temu',
+[0]   amount: 0,
+[0]   currency: '',
+[0]   platform: 'Temu',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: ''
+[0] }
+[0] [Gemini] Batch 1[1] id=19f3f37b6a2514e4: {
+[0]   isPurchaseEmail: true,
+[0]   name: 'Temu',
+[0]   amount: 0,
+[0]   currency: '',
+[0]   platform: 'Temu',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: ''
+[0] }
+[0] [Gemini] Batch 1[2] id=19f3a110f7b19df5: {
+[0]   isPurchaseEmail: true,
+[0]   name: 'Temu',
+[0]   amount: 0,
+[0]   currency: '',
+[0]   platform: 'Temu',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: ''
+[0] }
+[0] [Gemini] Batch 1[3] id=19f381cecfd54fe2: {
+[0]   isPurchaseEmail: true,
+[0]   name: 'Amazon',
+[0]   amount: 0,
+[0]   currency: '',
+[0]   platform: 'Amazon',
+[0]   status: 'Đã giao',
+[0]   orderId: '113-8904501-8536268'
+[0] }
+[0] [Gemini] Batch 1[4] id=19f34eaeca335047: {
+[0]   isPurchaseEmail: true,
+[0]   name: 'Temu',
+[0]   amount: 0,
+[0]   currency: '',
+[0]   platform: 'Temu',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: ''
+[0] }
+[0] [Gemini] Batch 1[5] id=19f33df4d9072311: {
+[0]   isPurchaseEmail: true,
+[0]   name: 'Cursor',
+[0]   amount: 0,
+[0]   currency: '',
+[0]   platform: 'Cursor',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: ''
+[0] }
+[0] [Gemini] Batch 1[6] id=19f323aa6a45d7f5: {
+[0]   isPurchaseEmail: true,
+[0]   name: 'Adobe',
+[0]   amount: 0,
+[0]   currency: '',
+[0]   platform: 'Adobe',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: ''
+[0] }
+[0] [Gemini] Batch 1[7] id=19f30b99fc1aa025: {
+[0]   isPurchaseEmail: false,
+[0]   name: 'Chanel',
+[0]   amount: 0,
+[0]   currency: '',
+[0]   platform: 'Chanel',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: ''
+[0] }
+[0] [Gemini] Batch 1[8] id=19f30744f864cabf: {
+[0]   isPurchaseEmail: true,
+[0]   name: 'Amazon',
+[0]   amount: 14.99,
+[0]   currency: 'USD',
+[0]   platform: 'Amazon',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: ''
+[0] }
+[0] [Gemini] Batch 1[9] id=19f307055b39827c: {
+[0]   isPurchaseEmail: true,
+[0]   name: 'SHEIN',
+[0]   amount: 0,
+[0]   currency: '',
+[0]   platform: 'SHEIN',
+[0]   status: 'Đã giao',
+[0]   orderId: ''
+[0] }
+[0] [Gemini] Batch 2/2: sending 8 emails (ids: 19f306fd1b98f9db, 19f306fbaf72d6f7, 19f2fc4b3b8c8784, 19f2e7ad49a970af, 19f288d6da20f953, 19f1e779a735d95e, 19f1a6198bfea29c, 19f19e15685082ae)
+[0] [Gemini] Batch 2/2 raw response: [
+[0]   {
+[0]     "isPurchaseEmail": true,
+[0]     "name": "LED Flying Disc with Millions of Colors, Rechargeable & Water-resistant, 42 LEDs, 7+5 Light Modes, 175g Light Up Disc, Outdoor Toys for Kids Ages 4-8, Camping Equipment for Boys 8-12 Teens Men",
+[0]     "amount": 21.19,
+[0]     "currency": "USD",
+[0]     "platform": "Amazon",
+[0]     "status": "Đã giao",
+[0]     "orderId": "113-8904501-8536268",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": false,
+[0]     "name": "",
+[0]     "amount": 0,
+[0]     "currency": "",
+[0]     "platform": "Amazon",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": true,
+[0]     "name": "",
+[0]     "amount": 0,
+[0]     "currency": "USD",
+[0]     "platform": "Temu",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": true,
+[0]     "name": "",
+[0]     "amount": 9.77,
+[0]     "currency": "USD",
+[0]     "platform": "Temu",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": true,
+[0]     "name": "",
+[0]     "amount": 0,
+[0]     "currency": "",
+[0]     "platform": "Walmart",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": false,
+[0]     "name": "",
+[0]     "amount": 0,
+[0]     "currency": "",
+[0]     "platform": "DoorDash",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": true,
+[0]     "name": "",
+[0]     "amount": 0,
+[0]     "currency": "",
+[0]     "platform": "AliExpress",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "8212443504103636",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   },
+[0]   {
+[0]     "isPurchaseEmail": true,
+[0]     "name": "",
+[0]     "amount": 0,
+[0]     "currency": "",
+[0]     "platform": "Temu",
+[0]     "status": "Chờ xử lý",
+[0]     "orderId": "",
+[0]     "parentCategory": "Mua sắm",
+[0]     "childCategory": "Khác"
+[0]   }
+[0] ]
+[0] [Gemini] Batch 2[0] id=19f306fd1b98f9db: {
+[0]   isPurchaseEmail: true,
+[0]   name: 'LED Flying Disc with Millions of Colors, Rechargeable & Water-resistant, 42 LEDs, 7+5 Light Modes, 175g Light Up Disc, Outdoor Toys for Kids Ages 4-8, Camping Equipment for Boys 8-12 Teens Men',
+[0]   amount: 21.19,
+[0]   currency: 'USD',
+[0]   platform: 'Amazon',
+[0]   status: 'Đã giao',
+[0]   orderId: '113-8904501-8536268'
+[0] }
+[0] [Gemini] Batch 2[1] id=19f306fbaf72d6f7: {
+[0]   isPurchaseEmail: false,
+[0]   name: '',
+[0]   amount: 0,
+[0]   currency: '',
+[0]   platform: 'Amazon',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: ''
+[0] }
+[0] [Gemini] Batch 2[2] id=19f2fc4b3b8c8784: {
+[0]   isPurchaseEmail: true,
+[0]   name: '',
+[0]   amount: 0,
+[0]   currency: 'USD',
+[0]   platform: 'Temu',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: ''
+[0] }
+[0] [Gemini] Batch 2[3] id=19f2e7ad49a970af: {
+[0]   isPurchaseEmail: true,
+[0]   name: '',
+[0]   amount: 9.77,
+[0]   currency: 'USD',
+[0]   platform: 'Temu',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: ''
+[0] }
+[0] [Gemini] Batch 2[4] id=19f288d6da20f953: {
+[0]   isPurchaseEmail: true,
+[0]   name: '',
+[0]   amount: 0,
+[0]   currency: '',
+[0]   platform: 'Walmart',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: ''
+[0] }
+[0] [Gemini] Batch 2[5] id=19f1e779a735d95e: {
+[0]   isPurchaseEmail: false,
+[0]   name: '',
+[0]   amount: 0,
+[0]   currency: '',
+[0]   platform: 'DoorDash',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: ''
+[0] }
+[0] [Gemini] Batch 2[6] id=19f1a6198bfea29c: {
+[0]   isPurchaseEmail: true,
+[0]   name: '',
+[0]   amount: 0,
+[0]   currency: '',
+[0]   platform: 'AliExpress',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: '8212443504103636'
+[0] }
+[0] [Gemini] Batch 2[7] id=19f19e15685082ae: {
+[0]   isPurchaseEmail: true,
+[0]   name: '',
+[0]   amount: 0,
+[0]   currency: '',
+[0]   platform: 'Temu',
+[0]   status: 'Chờ xử lý',
+[0]   orderId: ''
+[0] }
+[0] [Sync] Deduped 4 emails (same sender+orderId+amount, kept newest)
+[0] [Sync] Processing id=19f3f37b6a2514e4 subject="Thanks for your order": isPurchaseEmail=true amount=0
+[0] [Sync] SKIP: amount=0 (no charge mentioned in email)
+[0] [Sync] Processing id=19f381cecfd54fe2 subject="Delivered: "LED Flying Disc with..."": isPurchaseEmail=true amount=0
+[0] [Sync] SKIP: amount=0 (no charge mentioned in email)
+[0] [Sync] Processing id=19f33df4d9072311 subject="Couldn't process payment": isPurchaseEmail=true amount=0
+[0] [Sync] SKIP: amount=0 (no charge mentioned in email)
+[0] [Sync] Processing id=19f323aa6a45d7f5 subject="Your credit card payment is scheduled": isPurchaseEmail=true amount=0
+[0] [Sync] SKIP: amount=0 (no charge mentioned in email)
+[0] [Sync] Processing id=19f30744f864cabf subject="Welcome to Prime!": isPurchaseEmail=true amount=14.99 USD
+[0] [Sync] SAVED: "Amazon" 14.99 USD 
+[0] [Sync] Processing id=19f307055b39827c subject="Your Summer Vibe 😎 Delivered FREE ✨": isPurchaseEmail=true amount=0
+[0] [Sync] SKIP: amount=0 (no charge mentioned in email)
+[0] [Sync] Processing id=19f306fd1b98f9db subject="Ordered: "LED Flying Disc with..."": isPurchaseEmail=true amount=21.19 USD
+[0] [Sync] SAVED: "LED Flying Disc with Millions of Colors, Rechargeable & Water-resistant, 42 LEDs, 7+5 Light Modes, 175g Light Up Disc, Outdoor Toys for Kids Ages 4-8, Camping Equipment for Boys 8-12 Teens Men" 21.19 USD
+[0] [Sync] Processing id=19f2e7ad49a970af subject="Your previous purchase has received $9.77 reimbursement.": isPurchaseEmail=true amount=9.77 USD
+[0] [Sync] SAVED: "Your previous purchase has received $9.77 reimbursement." 9.77 USD 
+[0] [Sync] Processing id=19f288d6da20f953 subject="Review your recent Walmart purchase": isPurchaseEmail=true amount=0
+[0] [Sync] SKIP: amount=0 (no charge mentioned in email)
+[0] [Sync] Processing id=19f1a6198bfea29c subject="Order 8212443504103636: how did it go?": isPurchaseEmail=true amount=0
+[0] [Sync] SKIP: amount=0 (no charge mentioned in email)
+[0] [2026-07-10T03:17:17.002Z] GET /api/expenses?month=2026-06&page=1&limit=20
+[0] [2026-07-10T03:17:29.119Z] GET /api/auth/me
+[0] [2026-07-10T03:17:29.122Z] GET /api/auth/me
+[0] [2026-07-10T03:17:29.208Z] GET /api/expenses?month=2026-07&page=1&limit=20
+[0] [2026-07-10T03:17:29.209Z] GET /api/gmail/status
+[0] [2026-07-10T03:17:31.460Z] GET /api/gmail/status
+[0] [2026-07-10T03:17:31.551Z] GET /api/expenses?month=2026-07&page=1&limit=20
+[0] [2026-07-10T03:17:37.871Z] GET /api/expenses?month=2026-06&page=1&limit=20
+[0] [2026-07-10T03:17:42.733Z] GET /api/expenses?month=2026-07&page=1&limit=20
