@@ -26,6 +26,10 @@ import expensesHandler from './expenses/index.js'
 import categoriesHandler from './categories/index.js'
 import gmailSyncHandler from './gmail/sync.js'
 import gmailStatusHandler from './gmail/status.js'
+import gmailHistoryHandler from './gmail/history.js'
+import gmailWatchHandler from './gmail/watch.js'
+import gmailWebhookHandler from './gmail/webhook.js'
+import gmailFlushHandler from './gmail/flush.js'
 
 // ── adapter: Express req/res → Vercel req/res ────────────────────────────
 type VercelHandler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>
@@ -61,6 +65,10 @@ app.all('/api/expenses', adapt(expensesHandler))
 app.all('/api/categories', adapt(categoriesHandler))
 app.all('/api/gmail/sync', adapt(gmailSyncHandler))
 app.all('/api/gmail/status', adapt(gmailStatusHandler))
+app.all('/api/gmail/history', adapt(gmailHistoryHandler))
+app.all('/api/gmail/watch', adapt(gmailWatchHandler))
+app.all('/api/gmail/webhook', adapt(gmailWebhookHandler))
+app.all('/api/gmail/flush', adapt(gmailFlushHandler))
 
 // 404 for unmatched /api/* routes
 app.all('/api/*path', (_req, res) => {

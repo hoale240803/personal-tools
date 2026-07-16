@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ChevronDown, ChevronRight, FolderTree, Plus, Save, Trash2 } from 'lucide-react'
-import { fetchCategories, saveCategories } from '../lib/api'
+import { Bell, ChevronDown, ChevronRight, FolderTree, Plus, RefreshCw, Save, Trash2 } from 'lucide-react'
+import { fetchCategories, saveCategories, setupGmailWatch } from '../lib/api'
 import type { CategoryParent } from '../types'
 
 export function SettingsPage() {
@@ -12,6 +12,12 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+
+  // Gmail Watch state
+  const [watchLoading, setWatchLoading] = useState(false)
+  const [watchExpiration, setWatchExpiration] = useState<string | null>(null)
+  const [watchMessage, setWatchMessage] = useState<string | null>(null)
+  const [watchError, setWatchError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchCategories()
@@ -222,6 +228,59 @@ export function SettingsPage() {
           Khi đọc email mua hàng, Gemini sẽ so khớp nội dung với danh sách danh mục bạn cấu hình
           ở đây. Nếu không khớp, app sẽ gán danh mục mặc định <strong>Mua sắm &gt; Khác</strong>.
         </p>
+      </div>
+
+      {/* Gmail Push Notification */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-700">
+          <Bell className="h-4 w-4 text-indigo-600" />
+          Gmail Push Notification (Watch)
+        </div>
+
+        <p className="mb-4 text-sm text-slate-500">
+          Đăng ký nhận thông báo từ Gmail khi có email mới. Watch hết hạn sau 7 ngày — hệ thống tự gia hạn qua Vercel Cron mỗi 6 ngày.
+        </p>
+
+        {watchError && (
+          <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {watchError}
+          </div>
+        )}
+        {watchMessage && (
+          <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            {watchMessage}
+          </div>
+        )}
+
+        {watchExpiration && (
+          <div className="mb-4 rounded-lg bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
+            <span className="font-medium">Hết hạn:</span>{' '}
+            {new Date(watchExpiration).toLocaleString('vi-VN')}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={async () => {
+            setWatchLoading(true)
+            setWatchError(null)
+            setWatchMessage(null)
+            try {
+              const result = await setupGmailWatch()
+              setWatchExpiration(result.expiration)
+              setWatchMessage(result.message)
+            } catch (err) {
+              setWatchError(err instanceof Error ? err.message : 'Đăng ký thất bại')
+            } finally {
+              setWatchLoading(false)
+            }
+          }}
+          disabled={watchLoading}
+          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+        >
+          <RefreshCw className={`h-4 w-4 ${watchLoading ? 'animate-spin' : ''}`} />
+          {watchLoading ? 'Đang đăng ký...' : 'Đăng ký / Gia hạn Watch'}
+        </button>
       </div>
     </div>
   )

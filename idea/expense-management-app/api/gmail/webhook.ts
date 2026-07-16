@@ -20,6 +20,7 @@ import {
 } from '../lib/sheets'
 import { readSessionByEmail } from '../lib/session'
 import { getEnv, getEnvOptional } from '../lib/env'
+import { logError } from '../lib/error-logger'
 
 /**
  * POST /api/gmail/webhook
@@ -41,6 +42,12 @@ import { getEnv, getEnvOptional } from '../lib/env'
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return methodNotAllowed(res)
+
+  // Hoist variables for access in catch block (error logging)
+  let session: Awaited<ReturnType<typeof readSessionByEmail>> = null
+  let emailAddress = ''
+  let historyId = ''
+  let queued = 0
 
   try {
     // ── 1. Verify Pub/Sub JWT ───────────────────────────────────────────────
@@ -75,7 +82,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return ok(res, { received: true })
     }
 
-    const { emailAddress, historyId } = gmailNotification
+    emailAddress = gmailNotification.emailAddress ?? ''
+    historyId = gmailNotification.historyId ?? ''
     if (!emailAddress || !historyId) {
       console.warn('[Webhook] Missing emailAddress or historyId in notification')
       return ok(res, { received: true })
@@ -84,7 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log(`[Webhook] Notification for ${emailAddress} historyId=${historyId}`)
 
     // ── 3. Find session for this user ───────────────────────────────────────
-    const session = await readSessionByEmail(emailAddress)
+    session = await readSessionByEmail(emailAddress)
     if (!session) {
       console.warn(`[Webhook] No active session for ${emailAddress} — skipping`)
       return ok(res, { received: true })
@@ -100,7 +108,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // ── 5. Enqueue relevant messages ────────────────────────────────────────
-    let queued = 0
     const existingIds = await getExistingMessageIds(session)
 
     for (const messageId of newMessageIds) {
@@ -146,6 +153,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return ok(res, { received: true, queued, pendingCount })
   } catch (error) {
     console.error('[Webhook] Unexpected error:', error)
+    // Best-effort error logging — session may not exist if error happened early
+    if (session) {
+      await logError({
+        source: 'pipeline:webhook',
+        error,
+        userEmail: emailAddress,
+        session,
+        context: { historyId, queued },
+      })
+    }
     // Still return 200 to ACK the Pub/Sub message and avoid infinite retries
     return ok(res, { received: true, error: true })
   }

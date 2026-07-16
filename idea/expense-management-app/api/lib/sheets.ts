@@ -2,6 +2,7 @@ import type { SessionData } from './session'
 import { getSheetsClient } from './google'
 import {
   CATEGORY_HEADERS,
+  ERROR_LOG_HEADERS,
   EXPENSE_HEADERS,
   PENDING_QUEUE_HEADERS,
   SHEET_NAMES,
@@ -110,6 +111,9 @@ async function ensureSheetHeaders(session: SessionData) {
   if (!existing.has(SHEET_NAMES.pendingQueue)) {
     requests.push({ addSheet: { properties: { title: SHEET_NAMES.pendingQueue } } })
   }
+  if (!existing.has(SHEET_NAMES.errorLog)) {
+    requests.push({ addSheet: { properties: { title: SHEET_NAMES.errorLog } } })
+  }
 
   if (requests.length > 0) {
     await sheets.spreadsheets.batchUpdate({
@@ -147,6 +151,12 @@ async function ensureSheetHeaders(session: SessionData) {
     range: `${SHEET_NAMES.pendingQueue}!A1:F1`,
     valueInputOption: 'RAW',
     requestBody: { values: [PENDING_QUEUE_HEADERS as unknown as string[]] },
+  })
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: id,
+    range: `${SHEET_NAMES.errorLog}!A1:I1`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [ERROR_LOG_HEADERS as unknown as string[]] },
   })
 }
 
@@ -607,5 +617,104 @@ export async function markPendingMessagesProcessed(
     })
   }
   console.log(`[PendingQueue] Marked ${messageIds.length} messages as done`)
+}
+
+// ─── ErrorLog ─────────────────────────────────────────────────────────────────
+
+export interface ErrorLogEntry {
+  errorId: string
+  timestamp: string
+  source: string
+  severity: 'error' | 'warning'
+  userEmail: string
+  message: string
+  stackTrace: string
+  context: Record<string, unknown>
+  resolved: boolean
+}
+
+export async function appendErrorLog(session: SessionData, entry: ErrorLogEntry) {
+  await ensureSheetHeaders(session)
+  const sheets = getSheetsClient(session)
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: spreadsheetId(session),
+    range: `${SHEET_NAMES.errorLog}!A:I`,
+    valueInputOption: 'RAW',
+    insertDataOption: 'INSERT_ROWS',
+    requestBody: {
+      values: [
+        [
+          entry.errorId,
+          entry.timestamp,
+          entry.source,
+          entry.severity,
+          entry.userEmail,
+          entry.message,
+          entry.stackTrace,
+          JSON.stringify(entry.context),
+          String(entry.resolved),
+        ],
+      ],
+    },
+  })
+}
+
+export async function getErrorLog(
+  session: SessionData,
+  limit = 50,
+): Promise<ErrorLogEntry[]> {
+  await ensureSheetHeaders(session)
+  const sheets = getSheetsClient(session)
+  const { data } = await sheets.spreadsheets.values.get({
+    spreadsheetId: spreadsheetId(session),
+    range: `${SHEET_NAMES.errorLog}!A2:I`,
+  })
+
+  const rows = (data.values ?? [])
+    .filter((row) => row[0])
+    .map((row) => {
+      let context: Record<string, unknown> = {}
+      try {
+        context = JSON.parse(String(row[7] ?? '{}'))
+      } catch {
+        context = {}
+      }
+      return {
+        errorId: String(row[0] ?? ''),
+        timestamp: String(row[1] ?? ''),
+        source: String(row[2] ?? ''),
+        severity: (String(row[3] ?? 'error')) as ErrorLogEntry['severity'],
+        userEmail: String(row[4] ?? ''),
+        message: String(row[5] ?? ''),
+        stackTrace: String(row[6] ?? ''),
+        context,
+        resolved: String(row[8]) === 'true',
+      } satisfies ErrorLogEntry
+    })
+
+  // Return newest first, limited
+  return rows.reverse().slice(0, limit)
+}
+
+export async function markErrorResolved(session: SessionData, errorId: string) {
+  await ensureSheetHeaders(session)
+  const sheets = getSheetsClient(session)
+
+  const { data } = await sheets.spreadsheets.values.get({
+    spreadsheetId: spreadsheetId(session),
+    range: `${SHEET_NAMES.errorLog}!A2:I`,
+  })
+
+  const rows = data.values ?? []
+  const rowIndex = rows.findIndex((row) => String(row[0]) === errorId)
+  if (rowIndex < 0) return
+
+  const sheetRow = rowIndex + 2
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: spreadsheetId(session),
+    range: `${SHEET_NAMES.errorLog}!I${sheetRow}`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [['true']] },
+  })
 }
 

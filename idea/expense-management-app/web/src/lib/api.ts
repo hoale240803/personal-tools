@@ -1,4 +1,4 @@
-import type { CategoryParent, Expense, SyncHistoryRecord, UserProfile } from '../types'
+import type { CategoryParent, ErrorLogEntry, Expense, SyncHistoryRecord, UserProfile } from '../types'
 
 interface ApiResponse<T> {
   data: T | null
@@ -128,6 +128,17 @@ export function setupGmailWatch() {
     '/api/gmail/watch',
     { method: 'POST' },
   )
+}
+
+export function fetchErrorLog() {
+  return request<ErrorLogEntry[]>('/api/gmail/history?type=errors')
+}
+
+export function resolveError(errorId: string) {
+  return request<{ resolved: boolean; errorId: string }>('/api/gmail/history', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'resolve-error', errorId }),
+  })
 }
 
 export interface ExpenseFormData {

@@ -37,6 +37,7 @@ export const SHEET_NAMES = {
   syncState: 'SyncState',
   syncHistory: 'SyncHistory',
   pendingQueue: 'PendingQueue',
+  errorLog: 'ErrorLog',
 } as const
 
 export const EXPENSE_HEADERS = [
@@ -82,6 +83,18 @@ export const PENDING_QUEUE_HEADERS = [
   'subject',
   'queuedAt',
   'status',
+] as const
+
+export const ERROR_LOG_HEADERS = [
+  'errorId',
+  'timestamp',
+  'source',
+  'severity',
+  'userEmail',
+  'message',
+  'stackTrace',
+  'context',
+  'resolved',
 ] as const
 
 export const DEFAULT_PAGE_SIZE = 20

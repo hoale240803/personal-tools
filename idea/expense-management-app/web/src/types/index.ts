@@ -51,3 +51,15 @@ export interface SyncHistoryRecord {
   syncType: 'manual' | 'pipeline'
   syncedAt: string
 }
+
+export interface ErrorLogEntry {
+  errorId: string
+  timestamp: string
+  source: string
+  severity: 'error' | 'warning'
+  userEmail: string
+  message: string
+  stackTrace: string
+  context: Record<string, unknown>
+  resolved: boolean
+}
