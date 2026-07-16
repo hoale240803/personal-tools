@@ -1,19 +1,19 @@
-import type { ExpenseStatus } from '../types'
+// import type { ExpenseStatus } from '../types'
 
-const platforms = ['Shopee', 'Lazada', 'GrabFood', 'Amazon', 'CGV', 'Tiki', 'Sendo']
-const statuses: ExpenseStatus[] = ['Đã giao', 'Đang giao', 'Chờ xử lý', 'Đã hủy']
-const items = [
-  { name: 'Tai nghe Bluetooth', category: 'Mua sắm > Phụ kiện', parent: 'Mua sắm', amount: 890_000 },
-  { name: 'Trà sữa trân châu', category: 'Ăn uống > Trà sữa', parent: 'Ăn uống', amount: 65_000 },
-  { name: 'Sữa rửa mặt CeraVe', category: 'Chăm sóc cá nhân > Mỹ phẩm', parent: 'Chăm sóc cá nhân', amount: 320_000 },
-  { name: 'Áo thun basic', category: 'Mua sắm > Quần áo', parent: 'Mua sắm', amount: 199_000 },
-  { name: 'Vé phim IMAX', category: 'Tự thưởng bản thân > Xem phim', parent: 'Tự thưởng bản thân', amount: 280_000 },
-  { name: 'Bộ sách self-help', category: 'Tự thưởng bản thân > Sách', parent: 'Tự thưởng bản thân', amount: 450_000 },
-  { name: 'Cơm trưa văn phòng', category: 'Ăn uống > Ăn ngoài', parent: 'Ăn uống', amount: 75_000 },
-  { name: 'Chuột không dây Logitech', category: 'Mua sắm > Điện tử', parent: 'Mua sắm', amount: 550_000 },
-  { name: 'Nước hoa mini', category: 'Chăm sóc cá nhân > Mỹ phẩm', parent: 'Chăm sóc cá nhân', amount: 680_000 },
-  { name: 'Bia craft 6 lon', category: 'Ăn uống > Đồ uống', parent: 'Ăn uống', amount: 240_000 },
-]
+// const platforms = ['Shopee', 'Lazada', 'GrabFood', 'Amazon', 'CGV', 'Tiki', 'Sendo']
+// const statuses: ExpenseStatus[] = ['Đã giao', 'Đang giao', 'Chờ xử lý', 'Đã hủy']
+// const items = [
+//   { name: 'Tai nghe Bluetooth', category: 'Mua sắm > Phụ kiện', parent: 'Mua sắm', amount: 890_000 },
+//   { name: 'Trà sữa trân châu', category: 'Ăn uống > Trà sữa', parent: 'Ăn uống', amount: 65_000 },
+//   { name: 'Sữa rửa mặt CeraVe', category: 'Chăm sóc cá nhân > Mỹ phẩm', parent: 'Chăm sóc cá nhân', amount: 320_000 },
+//   { name: 'Áo thun basic', category: 'Mua sắm > Quần áo', parent: 'Mua sắm', amount: 199_000 },
+//   { name: 'Vé phim IMAX', category: 'Tự thưởng bản thân > Xem phim', parent: 'Tự thưởng bản thân', amount: 280_000 },
+//   { name: 'Bộ sách self-help', category: 'Tự thưởng bản thân > Sách', parent: 'Tự thưởng bản thân', amount: 450_000 },
+//   { name: 'Cơm trưa văn phòng', category: 'Ăn uống > Ăn ngoài', parent: 'Ăn uống', amount: 75_000 },
+//   { name: 'Chuột không dây Logitech', category: 'Mua sắm > Điện tử', parent: 'Mua sắm', amount: 550_000 },
+//   { name: 'Nước hoa mini', category: 'Chăm sóc cá nhân > Mỹ phẩm', parent: 'Chăm sóc cá nhân', amount: 680_000 },
+//   { name: 'Bia craft 6 lon', category: 'Ăn uống > Đồ uống', parent: 'Ăn uống', amount: 240_000 },
+// ]
 
 // function buildMockExpenses(): Expense[] {
 //   const expenses: Expense[] = [
