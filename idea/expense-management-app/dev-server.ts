@@ -6,33 +6,36 @@
  */
 
 import { config as loadEnv } from 'dotenv'
-import { resolve, dirname } from 'path'
-import { fileURLToPath } from 'url'
+import { resolve } from 'path'
+import { createRequire } from 'module'
 
-// Load .env from monorepo root
-const __dirname = dirname(fileURLToPath(import.meta.url))
-loadEnv({ path: resolve(__dirname, '..', '.env') })
+// Load .env from project root (CommonJS-compatible, no import.meta)
+const __dirname = resolve(__filename, '..')
+loadEnv({ path: resolve(__dirname, '.env') })
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _require = createRequire(__filename)
 import express from 'express'
 import type { Request, Response } from 'express'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 // ── handler imports ────────────────────────────────────────────────────────
-import healthHandler from './health.js'
-import loginHandler from './auth/login.js'
-import callbackHandler from './auth/callback.js'
-import meHandler from './auth/me.js'
-import logoutHandler from './auth/logout.js'
-import expensesHandler from './expenses/index.js'
-import categoriesHandler from './categories/index.js'
-import gmailSyncHandler from './gmail/sync.js'
-import gmailStatusHandler from './gmail/status.js'
-import gmailHistoryHandler from './gmail/history.js'
-import gmailWatchHandler from './gmail/watch.js'
-import gmailWebhookHandler from './gmail/webhook.js'
-import gmailFlushHandler from './gmail/flush.js'
+import healthHandler from './api/health.js'
+import loginHandler from './api/auth/login.js'
+import callbackHandler from './api/auth/callback.js'
+import meHandler from './api/auth/me.js'
+import logoutHandler from './api/auth/logout.js'
+import expensesHandler from './api/expenses/index.js'
+import categoriesHandler from './api/categories/index.js'
+import gmailSyncHandler from './api/gmail/sync.js'
+import gmailStatusHandler from './api/gmail/status.js'
+import gmailHistoryHandler from './api/gmail/history.js'
+import gmailWatchHandler from './api/gmail/watch.js'
+import gmailWebhookHandler from './api/gmail/webhook.js'
+import gmailFlushHandler from './api/gmail/flush.js'
 
 // ── adapter: Express req/res → Vercel req/res ────────────────────────────
-type VercelHandler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>
+// Allow handlers that may return VercelResponse (e.g. res.json(...) chain)
+type VercelHandler = (req: VercelRequest, res: VercelResponse) => void | Promise<void | VercelResponse>
 
 function adapt(handler: VercelHandler) {
   return async (req: Request, res: Response) => {
