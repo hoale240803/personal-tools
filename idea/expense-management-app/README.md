@@ -38,6 +38,17 @@ Vite proxy `/api` → `http://localhost:3000`. Test API: http://localhost:3000/a
 
 API dùng `vercel.api.json` riêng (không có `devCommand`) để tránh Vercel khởi động thêm Vite trùng port.
 
+## Deploy
+
+### Option 1: Vercel (Hiện tại)
+- Giới hạn 12 Serverless Functions (Hobby plan)
+- Xem thêm: `vercel.json`
+
+### Option 2: Render (Không giới hạn Functions - Khuyến nghị)
+- Deploy sử dụng `render.yaml`
+- Xem chi tiết: [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md)
+- Branch: `feature/render-deployment`
+
 ### Chế độ tách — 2 terminal
 
 ```bash
