@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { setupGmailWatch } from '../lib/gmail'
-import { methodNotAllowed, ok, serverError, unauthorized } from '../lib/response'
-import { updateSyncState } from '../lib/sheets'
-import { readSession } from '../lib/session'
-import { getEnv } from '../lib/env'
+import { setupGmailWatch } from '../_lib/gmail'
+import { methodNotAllowed, ok, serverError, unauthorized } from '../_lib/response'
+import { updateSyncState } from '../_lib/sheets'
+import { readSession } from '../_lib/session'
+import { getEnv } from '../_lib/env'
 
 /**
  * POST /api/gmail/watch
@@ -51,8 +51,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
  * This is used by the webhook to know where to start reading Gmail history from.
  */
 async function updateSyncStateHistoryId(session: Parameters<typeof updateSyncState>[0], historyId: string) {
-  const { getSheetsClient } = await import('../lib/google')
-  const { SHEET_NAMES } = await import('../lib/env')
+  const { getSheetsClient } = await import('../_lib/google')
+  const { SHEET_NAMES } = await import('../_lib/env')
 
   const sheets = getSheetsClient(session)
   const spreadsheetId = session.spreadsheetId

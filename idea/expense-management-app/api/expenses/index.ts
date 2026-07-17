@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { DEFAULT_PAGE_SIZE } from '../lib/env'
+import { DEFAULT_PAGE_SIZE } from '../_lib/env'
 import {
   badRequest,
   created,
@@ -7,9 +7,9 @@ import {
   ok,
   serverError,
   unauthorized,
-} from '../lib/response'
-import { appendExpense, deleteExpense, getExpenses, updateExpense, type ExpenseRow } from '../lib/sheets'
-import { readSession } from '../lib/session'
+} from '../_lib/response'
+import { appendExpense, deleteExpense, getExpenses, updateExpense, type ExpenseRow } from '../_lib/sheets'
+import { readSession } from '../_lib/session'
 
 function generateId(): string {
   return `exp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`

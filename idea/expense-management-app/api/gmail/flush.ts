@@ -1,9 +1,9 @@
 import { randomUUID } from 'crypto'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { parsePurchaseEmailsBatch } from '../lib/gemini'
-import { getMessageById } from '../lib/gmail'
-import { logError } from '../lib/error-logger'
-import { methodNotAllowed, ok } from '../lib/response'
+import { parsePurchaseEmailsBatch } from '../_lib/gemini'
+import { getMessageById } from '../_lib/gmail'
+import { logError } from '../_lib/error-logger'
+import { methodNotAllowed, ok } from '../_lib/response'
 import {
   appendExpense,
   appendSyncHistory,
@@ -12,10 +12,10 @@ import {
   getPendingMessages,
   markPendingMessagesProcessed,
   type SyncErrorItem,
-} from '../lib/sheets'
-import { readSession, readSessionByEmail } from '../lib/session'
-import { getEnvOptional, SHEET_NAMES } from '../lib/env'
-import { getSheetsClient } from '../lib/google'
+} from '../_lib/sheets'
+import { readSession, readSessionByEmail } from '../_lib/session'
+import { getEnvOptional, SHEET_NAMES } from '../_lib/env'
+import { getSheetsClient } from '../_lib/google'
 
 /**
  * GET /api/gmail/flush

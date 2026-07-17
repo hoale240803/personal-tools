@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: expense-management-api
+    name: app-api
     env: node
     plan: free
     branch: main
@@ -16,7 +16,7 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_REDIRECT_URI
-        value: https://expense-management-api.onrender.com/api/auth/callback
+        value: https://app-api.onrender.com/api/auth/callback
       - key: SESSION_SECRET
         sync: false
       - key: GEMINI_API_KEY
@@ -25,13 +25,13 @@ services:
         sync: false
 
   - type: static_site
-    name: expense-management-web
+    name: app-web
     env: static
     buildCommand: cd web && npm install && npm run build
     staticPublishPath: web/dist
     branch: main
     routes:
       - path: /api/*
-        destination: https://expense-management-api.onrender.com/api/$1
+        destination: https://app-api.onrender.com/api/$1
       - path: /*
         destination: /index.html

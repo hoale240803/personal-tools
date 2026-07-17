@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { exchangeCodeForSession } from '../lib/google'
-import { methodNotAllowed, serverError } from '../lib/response'
-import { createSessionToken, getAppOrigin, persistDevSession, setSessionCookie } from '../lib/session'
+import { exchangeCodeForSession } from '../_lib/google'
+import { methodNotAllowed, serverError } from '../_lib/response'
+import { createSessionToken, getAppOrigin, persistDevSession, setSessionCookie } from '../_lib/session'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return methodNotAllowed(res)

@@ -1,12 +1,12 @@
 import { randomUUID } from 'crypto'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { parsePurchaseEmailsBatch } from '../lib/gemini'
+import { parsePurchaseEmailsBatch } from '../_lib/gemini'
 import {
   countPurchaseMessages,
   listPurchaseMessages,
   type DateRange,
-} from '../lib/gmail'
-import { methodNotAllowed, ok, serverError, unauthorized } from '../lib/response'
+} from '../_lib/gmail'
+import { methodNotAllowed, ok, serverError, unauthorized } from '../_lib/response'
 import {
   appendExpense,
   appendSyncHistory,
@@ -14,9 +14,9 @@ import {
   getExistingMessageIds,
   updateSyncState,
   type SyncErrorItem,
-} from '../lib/sheets'
-import { readSession } from '../lib/session'
-import { getSyncMessageThreshold } from '../lib/env'
+} from '../_lib/sheets'
+import { readSession } from '../_lib/session'
+import { getSyncMessageThreshold } from '../_lib/env'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return methodNotAllowed(res)

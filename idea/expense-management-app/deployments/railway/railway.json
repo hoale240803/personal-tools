@@ -1,0 +1,21 @@
+{
+  "services": [
+    {
+      "name": "api",
+      "buildCommand": "cd api && npm install && npm run build",
+      "startCommand": "cd api && npm run start",
+      "environment": {
+        "PORT": 3000,
+        "NODE_ENV": "production"
+      }
+    },
+    {
+      "name": "web",
+      "buildCommand": "cd web && npm install && npm run build",
+      "publishDirectory": "web/dist",
+      "environment": {
+        "NODE_ENV": "production"
+      }
+    }
+  ]
+}

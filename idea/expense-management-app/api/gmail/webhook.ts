@@ -1,12 +1,12 @@
 import { randomUUID } from 'crypto'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { parsePurchaseEmailsBatch } from '../lib/gemini'
+import { parsePurchaseEmailsBatch } from '../_lib/gemini'
 import {
   BASE_PURCHASE_QUERY_TERMS,
   getGmailHistory,
   getMessageById,
-} from '../lib/gmail'
-import { methodNotAllowed, ok, serverError } from '../lib/response'
+} from '../_lib/gmail'
+import { methodNotAllowed, ok, serverError } from '../_lib/response'
 import {
   appendExpense,
   appendSyncHistory,
@@ -17,10 +17,10 @@ import {
   getPendingMessages,
   markPendingMessagesProcessed,
   type SyncErrorItem,
-} from '../lib/sheets'
-import { readSessionByEmail } from '../lib/session'
-import { getEnv, getEnvOptional } from '../lib/env'
-import { logError } from '../lib/error-logger'
+} from '../_lib/sheets'
+import { readSessionByEmail } from '../_lib/session'
+import { getEnv, getEnvOptional } from '../_lib/env'
+import { logError } from '../_lib/error-logger'
 
 /**
  * POST /api/gmail/webhook

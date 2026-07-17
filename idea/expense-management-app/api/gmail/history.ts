@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { methodNotAllowed, ok, serverError, unauthorized } from '../lib/response'
-import { getErrorLog, getSyncHistory, markErrorResolved } from '../lib/sheets'
-import { readSession } from '../lib/session'
+import { methodNotAllowed, ok, serverError, unauthorized } from '../_lib/response'
+import { getErrorLog, getSyncHistory, markErrorResolved } from '../_lib/sheets'
+import { readSession } from '../_lib/session'
 
 /**
  * /api/gmail/history

@@ -5,9 +5,9 @@ import {
   ok,
   serverError,
   unauthorized,
-} from '../lib/response'
-import { readSession } from '../lib/session'
-import { getCategories, saveCategories, type CategoryParent } from '../lib/sheets'
+} from '../_lib/response'
+import { readSession } from '../_lib/session'
+import { getCategories, saveCategories, type CategoryParent } from '../_lib/sheets'
 
 function isValidCategories(input: unknown): input is CategoryParent[] {
   return (
