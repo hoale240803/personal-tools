@@ -1,3 +1,4 @@
+import React from 'react'
 import { ShoppingBag } from 'lucide-react'
 
 interface PlatformIconProps {
@@ -6,7 +7,7 @@ interface PlatformIconProps {
   className?: string
 }
 
-const PLATFORM_CONFIGS: Record<string, { icon: JSX.Element; bg: string; color: string }> = {}
+
 
 function getAmazonIcon(s: number) {
   return (
@@ -116,7 +117,7 @@ function getEbayIcon(s: number) {
   )
 }
 
-function getPlatformIcon(platform: string, size: number): JSX.Element | null {
+function getPlatformIcon(platform: string, size: number): React.ReactNode | null {
   const lower = platform.toLowerCase()
 
   if (lower.includes('amazon')) return getAmazonIcon(size)

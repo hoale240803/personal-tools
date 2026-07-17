@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { X, Save, Loader2 } from 'lucide-react'
-import type { Expense } from '../types'
+import type { Expense, ExpenseStatus } from '../types'
 import type { ExpenseFormData } from '../lib/api'
 import { fetchCategories } from '../lib/api'
 import type { CategoryParent } from '../types'
@@ -194,7 +194,7 @@ export function ExpenseFormModal({ expense, onSave, onClose }: ExpenseFormModalP
                 <label className="mb-1.5 block text-xs font-medium text-slate-700">Trạng thái</label>
                 <select
                   value={status}
-                  onChange={(e) => setStatus(e.target.value)}
+                  onChange={(e) => setStatus(e.target.value as ExpenseStatus)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
                 >
                   {STATUS_OPTIONS.map((s) => (
