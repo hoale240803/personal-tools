@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev:web",
+  "installCommand": "npm install",
+  "outputDirectory": "web/dist",
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/gmail/watch",
+      "schedule": "0 0 */6 * *"
+    },
+    {
+      "path": "/api/gmail/flush",
+      "schedule": "59 16 * * *"
+    }
+  ]
+}
