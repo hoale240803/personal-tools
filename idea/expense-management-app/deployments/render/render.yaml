@@ -1,11 +1,11 @@
 services:
-  # ── API (Express server wrapping Vercel Function handlers) ─────────────────
+  # ── API (Express server chạy Node) ─────────────────────────────────────────
   - type: web
     name: expense-api
     env: node
     plan: free
     branch: main
-    rootDir: ../../.. # Trỏ ngược về gốc repository (personal-tools) nếu các thư mục api/web nằm ở đó
+    rootDir: ../../.. # Đi ngược từ deployments/render/ về gốc repo
     buildCommand: npm install && cd idea/expense-management-app/api && npm install
     startCommand: node --loader=tsx idea/expense-management-app/api/dev-server.ts
     envVars:
@@ -26,18 +26,18 @@ services:
       - key: GMAIL_USER
         sync: false
 
+# Tách riêng phần Static Site ra khỏi mục services
+statics:
   # ── Web Frontend (React + Vite static site) ────────────────────────────────
-  - type: static_site
-    name: expense-web
-    env: html # KHÔNG DÙNG 'static', Render chỉ nhận 'html' cho static_site
+  - name: expense-web
     branch: main
-    rootDir: ../../.. # Trỏ ngược về gốc repository
+    rootDir: ../../.. # Đi ngược từ deployments/render/ về gốc repo
     buildCommand: cd idea/expense-management-app/web && npm install && npm run build
-    staticPublishPath: idea/expense-management-app/web/dist
+    publishPath: idea/expense-management-app/web/dist # Lưu ý: Đổi tên thành 'publishPath' (bỏ chữ static_)
     routes:
-      # Proxy /api/* calls to the API service
+      # Proxy /api/* calls sang API service
       - path: /api/*
         destination: https://expense-api.onrender.com/api/$1
-      # SPA fallback — all other routes serve index.html
+      # SPA fallback — tất cả các route khác đều trả về index.html
       - path: /*
         destination: /index.html
