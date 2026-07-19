@@ -1,11 +1,13 @@
 services:
+  # ── API (Express server wrapping Vercel Function handlers) ─────────────────
   - type: web
-    name: app-api
+    name: expense-api
     env: node
     plan: free
     branch: main
-    buildCommand: cd api && npm install && npm run build
-    startCommand: cd api && npm run start
+    rootDir: ../../.. # Trỏ ngược về gốc repository (personal-tools) nếu các thư mục api/web nằm ở đó
+    buildCommand: npm install && cd idea/expense-management-app/api && npm install
+    startCommand: node --loader=tsx idea/expense-management-app/api/dev-server.ts
     envVars:
       - key: NODE_ENV
         value: production
@@ -16,7 +18,7 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_REDIRECT_URI
-        value: https://app-api.onrender.com/api/auth/callback
+        value: https://expense-api.onrender.com/api/auth/callback
       - key: SESSION_SECRET
         sync: false
       - key: GEMINI_API_KEY
@@ -24,14 +26,18 @@ services:
       - key: GMAIL_USER
         sync: false
 
+  # ── Web Frontend (React + Vite static site) ────────────────────────────────
   - type: static_site
-    name: app-web
-    env: static
-    buildCommand: cd web && npm install && npm run build
-    staticPublishPath: web/dist
+    name: expense-web
+    env: html # KHÔNG DÙNG 'static', Render chỉ nhận 'html' cho static_site
     branch: main
+    rootDir: ../../.. # Trỏ ngược về gốc repository
+    buildCommand: cd idea/expense-management-app/web && npm install && npm run build
+    staticPublishPath: idea/expense-management-app/web/dist
     routes:
+      # Proxy /api/* calls to the API service
       - path: /api/*
-        destination: https://app-api.onrender.com/api/$1
+        destination: https://expense-api.onrender.com/api/$1
+      # SPA fallback — all other routes serve index.html
       - path: /*
         destination: /index.html
