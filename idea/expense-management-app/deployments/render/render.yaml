@@ -26,14 +26,14 @@ services:
       - key: GMAIL_USER
         sync: false
 
-# Tách riêng phần Static Site ra khỏi mục services
-statics:
   # ── Web Frontend (React + Vite static site) ────────────────────────────────
-  - name: expense-web
+  - type: static       # Render Blueprint dùng từ khóa 'static' ở đây
+    name: expense-web
+    env: html
     branch: main
     rootDir: ../../.. # Đi ngược từ deployments/render/ về gốc repo
     buildCommand: cd idea/expense-management-app/web && npm install && npm run build
-    publishPath: idea/expense-management-app/web/dist # Lưu ý: Đổi tên thành 'publishPath' (bỏ chữ static_)
+    staticPublishPath: idea/expense-management-app/web/dist # Khi nằm trong services thì dùng lại 'staticPublishPath'
     routes:
       # Proxy /api/* calls sang API service
       - path: /api/*
