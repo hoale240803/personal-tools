@@ -1,12 +1,13 @@
 services:
-  # ── API (Express server wrapping Vercel Function handlers) ─────────────────
+  # ── Single service: Express serves both API and React frontend ─────────────
+  # dev-server.ts detects NODE_ENV=production and serves web/dist as static files
   - type: web
     name: expense-api
     env: node
     plan: free
     branch: main
     rootDir: idea/expense-management-app
-    buildCommand: npm install && cd api && npm install
+    buildCommand: npm install && cd web && npm install && npm run build && cd .. && cd api && npm install
     startCommand: node --loader=tsx dev-server.ts
     envVars:
       - key: NODE_ENV
@@ -25,18 +26,3 @@ services:
         sync: false
       - key: GMAIL_USER
         sync: false
-
-  # ── Web Frontend (React + Vite static site) ────────────────────────────────
-  - type: static_site
-    name: expense-web
-    branch: main
-    rootDir: idea/expense-management-app/web
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    routes:
-      - type: rewrite
-        source: /api/*
-        destination: https://expense-api.onrender.com/api/$1
-      - type: rewrite
-        source: /*
-        destination: /index.html
