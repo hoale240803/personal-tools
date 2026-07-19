@@ -27,13 +27,14 @@ services:
         sync: false
 
   # ── Web Frontend (React + Vite static site) ────────────────────────────────
-  - type: static       # Render Blueprint dùng từ khóa 'static' ở đây
+  - type: web
     name: expense-web
-    env: html
+    env: static        # Chuyển về 'static' để Render nhận diện đây là Static Site
+    plan: free
     branch: main
-    rootDir: ../../.. # Đi ngược từ deployments/render/ về gốc repo
+    rootDir: ../../.. 
     buildCommand: cd idea/expense-management-app/web && npm install && npm run build
-    staticPublishPath: idea/expense-management-app/web/dist # Khi nằm trong services thì dùng lại 'staticPublishPath'
+    staticPublishPath: idea/expense-management-app/web/dist
     routes:
       # Proxy /api/* calls sang API service
       - path: /api/*
