@@ -75,7 +75,7 @@ app.all('/api/gmail/webhook', adapt(gmailWebhookHandler))
 app.all('/api/gmail/flush', adapt(gmailFlushHandler))
 
 // 404 for unmatched /api/* routes
-app.all('/api/*path', (_req, res) => {
+app.all('/api/{*path}', (_req, res) => {
   res.status(404).json({ data: null, error: { message: 'API route not found' } })
 })
 
@@ -86,7 +86,7 @@ const webDistPath = resolve(__dirname, 'web/dist')
 if (process.env.NODE_ENV === 'production' && existsSync(webDistPath)) {
   app.use(express.static(webDistPath))
   // SPA fallback — send index.html for all non-API routes
-  app.get('*', (_req, res) => {
+  app.get('/{*path}', (_req, res) => {
     res.sendFile(resolve(webDistPath, 'index.html'))
   })
   console.log(`     Static: serving web/dist`)
