@@ -8,6 +8,7 @@
 import { config as loadEnv } from 'dotenv'
 import { resolve } from 'path'
 import { createRequire } from 'module'
+import { existsSync } from 'fs'
 
 // Load .env from project root (CommonJS-compatible, no import.meta)
 const __dirname = resolve(__filename, '..')
@@ -77,6 +78,19 @@ app.all('/api/gmail/flush', adapt(gmailFlushHandler))
 app.all('/api/*path', (_req, res) => {
   res.status(404).json({ data: null, error: { message: 'API route not found' } })
 })
+
+// ── Static files (production only) ────────────────────────────────────────
+// In dev, the Vite dev server handles the frontend on a separate port.
+// In production (Render), Express serves the built React app from web/dist.
+const webDistPath = resolve(__dirname, 'web/dist')
+if (process.env.NODE_ENV === 'production' && existsSync(webDistPath)) {
+  app.use(express.static(webDistPath))
+  // SPA fallback — send index.html for all non-API routes
+  app.get('*', (_req, res) => {
+    res.sendFile(resolve(webDistPath, 'index.html'))
+  })
+  console.log(`     Static: serving web/dist`)
+}
 
 // ── start ──────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {

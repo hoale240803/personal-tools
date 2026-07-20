@@ -7,7 +7,7 @@ services:
     branch: main
     rootDir: ../../.. # Đi ngược từ deployments/render/ về gốc repo
     buildCommand: npm install && cd idea/expense-management-app/api && npm install
-    startCommand: node --loader=tsx idea/expense-management-app/api/dev-server.ts
+    startCommand: node --loader=tsx idea/expense-management-app/dev-server.ts
     envVars:
       - key: NODE_ENV
         value: production
@@ -33,7 +33,7 @@ services:
     plan: free
     branch: main
     rootDir: ../../.. 
-    buildCommand: cd idea/expense-management-app/web && npm install && npm run build
+    buildCommand: cd idea/expense-management-app/web && npm install --include=dev && npm run build
     staticPublishPath: idea/expense-management-app/web/dist
     routes:
       # Proxy /api/* calls sang API service
