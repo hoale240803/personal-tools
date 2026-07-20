@@ -7,7 +7,7 @@ services:
     plan: free
     branch: main
     rootDir: idea/expense-management-app
-    buildCommand: npm install && cd web && npm install && npm run build && cd .. && cd api && npm install
+    buildCommand: npm install && cd web && npm install --include=dev && npm run build && cd .. && cd api && npm install
     startCommand: node --loader=tsx dev-server.ts
     envVars:
       - key: NODE_ENV
