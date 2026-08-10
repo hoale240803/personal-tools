@@ -23,3 +23,5 @@ Sau đó show lên layout tương ứng với từng platform. Để người d�
   - Số người like/ thả tim
   - Số người bình luận
   - Số lượt share
+
+
