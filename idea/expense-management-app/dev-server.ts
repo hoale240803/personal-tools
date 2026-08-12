@@ -32,6 +32,7 @@ import gmailHistoryHandler from './api/gmail/history.js'
 import gmailWatchHandler from './api/gmail/watch.js'
 import gmailWebhookHandler from './api/gmail/webhook.js'
 import gmailFlushHandler from './api/gmail/flush.js'
+import gmailCronSyncHandler from './api/gmail/cron-sync.js'
 
 // ── adapter: Express req/res → Vercel req/res ────────────────────────────
 // Allow handlers that may return VercelResponse (e.g. res.json(...) chain)
@@ -72,6 +73,7 @@ app.all('/api/gmail/history', adapt(gmailHistoryHandler))
 app.all('/api/gmail/watch', adapt(gmailWatchHandler))
 app.all('/api/gmail/webhook', adapt(gmailWebhookHandler))
 app.all('/api/gmail/flush', adapt(gmailFlushHandler))
+app.all('/api/gmail/cron-sync', adapt(gmailCronSyncHandler))
 
 // 404 for unmatched /api/* routes
 app.all('/api/*path', (_req, res) => {

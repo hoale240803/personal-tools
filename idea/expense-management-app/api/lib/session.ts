@@ -19,8 +19,7 @@ export function persistDevSession(session: SessionData): void {
   }
 }
 
-function loadDevSession(): SessionData | null {
-  if (!isDevMode()) return null
+export function loadDevSession(): SessionData | null {
   try {
     const raw = readFileSync(DEV_SESSION_PATH, 'utf-8')
     const data = JSON.parse(raw) as SessionData

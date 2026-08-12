@@ -53,7 +53,7 @@ export interface SyncHistoryRecord {
   failCount: number
   errorMessages: SyncErrorItem[]
   duration: number
-  syncType: 'manual' | 'pipeline'
+  syncType: 'manual' | 'pipeline' | 'cron'
   syncedAt: string
 }
 

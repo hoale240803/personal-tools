@@ -1,0 +1,27 @@
+name: Quick 1-Click Agent Runner
+
+on:
+  issues:
+    types: [labeled] # Chỉ cần bạn bấm thả Label 'agent-go' là chạy ngay
+
+jobs:
+  execute:
+    if: github.event.label.name == 'agent-go'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Agent
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Chạy agent xử lý task
+          python scripts/agent_runner.py
+          
+      - name: Auto Create PR & Notify
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: "🤖 [Auto-Agent] Finished task #${{ github.event.issue.number }}"
+          branch: "auto-fix-${{ github.event.issue.number }}"
+          base: "main"
