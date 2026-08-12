@@ -54,7 +54,6 @@ services:
   - type: web
     name: expense-web
     runtime: static
-    plan: free
     branch: main
     rootDir: .
     buildCommand: npm install && npm run build
