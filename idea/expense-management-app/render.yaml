@@ -20,7 +20,7 @@ services:
     plan: free                 # or 'starter' for no sleep
     branch: main
     rootDir: idea/expense-management-app
-    buildCommand: npm install && cd api && npm run build
+    buildCommand: npm install && cd api && npm install --include=dev && npm run build
     startCommand: cd api && npm run start
     healthCheckPath: /api/health
     envVars:
