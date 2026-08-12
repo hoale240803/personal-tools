@@ -58,6 +58,12 @@ services:
     rootDir: idea/expense-management-app
     buildCommand: npm install && npm run build
     staticPublishPath: web/dist
+    buildFilter:
+      paths:
+        - web/**
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://expense-api-th7o.onrender.com
     headers:
       - path: /*
         name: Cache-Control

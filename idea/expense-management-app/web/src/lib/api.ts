@@ -48,16 +48,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body.data as T
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
+
 export function loginWithGoogle() {
-  window.location.href = '/api/auth/login'
+  window.location.href = `${API_BASE}/api/auth/login`
 }
 
 export function fetchCurrentUser() {
-  return request<UserProfile>('/api/auth/me')
+  return request<UserProfile>(`${API_BASE}/api/auth/me`)
 }
 
 export async function logout() {
-  await request<{ loggedOut: boolean }>('/api/auth/logout', { method: 'POST' })
+  await request<{ loggedOut: boolean }>(`${API_BASE}/api/auth/logout`, { method: 'POST' })
 }
 
 export function fetchExpenses(params: {
@@ -75,15 +77,15 @@ export function fetchExpenses(params: {
   if (params.day) query.set('day', params.day)
   if (params.search?.trim()) query.set('search', params.search.trim())
 
-  return request<ExpensesResult>(`/api/expenses?${query}`)
+  return request<ExpensesResult>(`${API_BASE}/api/expenses?${query}`)
 }
 
 export function fetchCategories() {
-  return request<CategoryParent[]>('/api/categories')
+  return request<CategoryParent[]>(`${API_BASE}/api/categories`)
 }
 
 export function saveCategories(categories: CategoryParent[]) {
-  return request<CategoryParent[]>('/api/categories', {
+  return request<CategoryParent[]>(`${API_BASE}/api/categories`, {
     method: 'PUT',
     body: JSON.stringify(categories),
   })
@@ -96,7 +98,7 @@ export interface SyncDateRange {
 
 /** Step 1: Count messages only — fast, no body fetch */
 export function countGmailMessages(dateRange?: SyncDateRange) {
-  return request<SyncCountResult>('/api/gmail/sync', {
+  return request<SyncCountResult>(`${API_BASE}/api/gmail/sync`, {
     method: 'POST',
     body: JSON.stringify({ action: 'count', ...dateRange }),
   })
@@ -104,7 +106,7 @@ export function countGmailMessages(dateRange?: SyncDateRange) {
 
 /** Step 2: Full sync — fetch bodies, parse with Gemini, save to Sheets */
 export function syncGmailExecute(dateRange?: SyncDateRange) {
-  return request<SyncExecuteResult>('/api/gmail/sync', {
+  return request<SyncExecuteResult>(`${API_BASE}/api/gmail/sync`, {
     method: 'POST',
     body: JSON.stringify({ action: 'execute', ...dateRange }),
   })
@@ -116,26 +118,26 @@ export function syncGmail(dateRange?: SyncDateRange) {
 }
 
 export function fetchGmailStatus() {
-  return request<{ lastSyncedAt: string | null }>('/api/gmail/status')
+  return request<{ lastSyncedAt: string | null }>(`${API_BASE}/api/gmail/status`)
 }
 
 export function fetchSyncHistory() {
-  return request<SyncHistoryRecord[]>('/api/gmail/history')
+  return request<SyncHistoryRecord[]>(`${API_BASE}/api/gmail/history`)
 }
 
 export function setupGmailWatch() {
   return request<{ historyId: string; expiration: string; message: string }>(
-    '/api/gmail/watch',
+    `${API_BASE}/api/gmail/watch`,
     { method: 'POST' },
   )
 }
 
 export function fetchErrorLog() {
-  return request<ErrorLogEntry[]>('/api/gmail/history?type=errors')
+  return request<ErrorLogEntry[]>(`${API_BASE}/api/gmail/history?type=errors`)
 }
 
 export function resolveError(errorId: string) {
-  return request<{ resolved: boolean; errorId: string }>('/api/gmail/history', {
+  return request<{ resolved: boolean; errorId: string }>(`${API_BASE}/api/gmail/history`, {
     method: 'POST',
     body: JSON.stringify({ action: 'resolve-error', errorId }),
   })
@@ -154,21 +156,21 @@ export interface ExpenseFormData {
 }
 
 export function createExpense(data: ExpenseFormData) {
-  return request<Expense>('/api/expenses', {
+  return request<Expense>(`${API_BASE}/api/expenses`, {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
 export function updateExpense(id: string, data: Partial<ExpenseFormData>) {
-  return request<Expense>('/api/expenses', {
+  return request<Expense>(`${API_BASE}/api/expenses`, {
     method: 'PUT',
     body: JSON.stringify({ id, ...data }),
   })
 }
 
 export function deleteExpense(id: string) {
-  return request<{ deleted: boolean; id: string }>(`/api/expenses?id=${id}`, {
+  return request<{ deleted: boolean; id: string }>(`${API_BASE}/api/expenses?id=${id}`, {
     method: 'DELETE',
   })
 }
