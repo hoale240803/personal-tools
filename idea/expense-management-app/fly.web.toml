@@ -1,0 +1,42 @@
+# fly.web.toml — Fly.io config for the Web (frontend) service
+# Docs: https://fly.io/docs/reference/configuration/
+#
+# How to use:
+#   1. Create app (first time only):
+#        flyctl apps create expense-web --config fly.web.toml
+#   2. Set secrets (VITE_ env vars must be set at BUILD time, not runtime):
+#        See README.md for how to pass VITE_API_URL during build.
+#   3. After that, deploy automatically via GitHub Actions (Deploy Hook)
+
+app = "expense-web"          # Change to your actual Fly.io app name
+primary_region = "sin"       # Singapore — change as needed
+
+[build]
+  dockerfile = "web/Dockerfile"
+
+[[services]]
+  internal_port = 80
+  protocol = "tcp"
+  auto_stop_machines = true
+  auto_start_machines = true
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+    force_https = true
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [services.concurrency]
+    hard_limit = 50
+    soft_limit = 40
+    type = "connections"
+
+  [[services.http_checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "5s"
+    method = "GET"
+    path = "/"

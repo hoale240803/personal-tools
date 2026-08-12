@@ -1,0 +1,51 @@
+name: Deploy to Fly.io
+
+# Trigger: every push to main branch
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-fly:
+    name: Trigger Fly.io Deploy Hooks
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── API service ──────────────────────────────────────────────────────
+      - name: Deploy API to Fly.io
+        if: ${{ secrets.FLY_DEPLOY_HOOK_API != '' }}
+        run: |
+          echo "Triggering Fly.io API deploy hook..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${{ secrets.FLY_DEPLOY_HOOK_API }}")
+          echo "Response: $response"
+          if [ "$response" != "200" ] && [ "$response" != "202" ]; then
+            echo "::error::Fly.io API deploy hook returned HTTP $response"
+            exit 1
+          fi
+          echo "✅ API deploy triggered successfully"
+
+      # ── Web service ──────────────────────────────────────────────────────
+      - name: Deploy Web to Fly.io
+        if: ${{ secrets.FLY_DEPLOY_HOOK_WEB != '' }}
+        run: |
+          echo "Triggering Fly.io Web deploy hook..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${{ secrets.FLY_DEPLOY_HOOK_WEB }}")
+          echo "Response: $response"
+          if [ "$response" != "200" ] && [ "$response" != "202" ]; then
+            echo "::error::Fly.io Web deploy hook returned HTTP $response"
+            exit 1
+          fi
+          echo "✅ Web deploy triggered successfully"
+
+      # ── Summary ──────────────────────────────────────────────────────────
+      - name: Summary
+        run: |
+          echo "## Deploy Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Triggered at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check deploy status at: https://fly.io/dashboard" >> $GITHUB_STEP_SUMMARY

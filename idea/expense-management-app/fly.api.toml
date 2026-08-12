@@ -1,0 +1,48 @@
+# fly.api.toml — Fly.io config for the API service
+# Docs: https://fly.io/docs/reference/configuration/
+#
+# How to use:
+#   1. Install flyctl: https://fly.io/docs/hands-on/install-flyctl/
+#   2. Run: flyctl auth login
+#   3. Create app (first time only):
+#        flyctl apps create expense-api --config fly.api.toml
+#   4. Set secrets (one-time):
+#        flyctl secrets set GEMINI_API_KEY=xxx GOOGLE_CLIENT_SECRET=xxx ... --config fly.api.toml
+#   5. After that, deploy automatically via GitHub Actions (Deploy Hook)
+
+app = "expense-api"          # Change to your actual Fly.io app name
+primary_region = "sin"       # Singapore — change as needed
+
+[build]
+  dockerfile = "api/Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+
+[[services]]
+  internal_port = 3000
+  protocol = "tcp"
+  auto_stop_machines = true   # Stop machine when no traffic (saves free allowance)
+  auto_start_machines = true  # Auto-start on first request
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+    force_https = true
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+    type = "connections"
+
+  [[services.http_checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/api/health"
