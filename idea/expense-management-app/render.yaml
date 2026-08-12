@@ -19,7 +19,7 @@ services:
     region: singapore          # Change to your preferred region
     plan: free                 # or 'starter' for no sleep
     branch: main
-    rootDir: .
+    rootDir: idea/expense-management-app
     buildCommand: npm install && cd api && npm run build
     startCommand: cd api && npm run start
     healthCheckPath: /api/health
@@ -55,7 +55,7 @@ services:
     name: expense-web
     runtime: static
     branch: main
-    rootDir: .
+    rootDir: idea/expense-management-app
     buildCommand: npm install && npm run build
     staticPublishPath: web/dist
     headers:
