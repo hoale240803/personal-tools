@@ -73,6 +73,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     for (const { session, email } of users) {
       try {
+        // ── Skip users on webhook/realtime mode — they have the Pub/Sub pipeline ──
+        const { syncMode } = await getSyncState(session)
+        if (syncMode === 'webhook') {
+          console.log(`[CronSync] SKIP ${email} — syncMode=webhook (realtime pipeline active)`)
+          results.push({ email, synced: 0, skipped: -1, failed: 0 })
+          continue
+        }
+
         console.log(`[CronSync] Processing user: ${email}`)
         const result = await syncUserEmails(session, email)
         results.push({ email, ...result })

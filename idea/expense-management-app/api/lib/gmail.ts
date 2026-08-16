@@ -297,6 +297,21 @@ export async function setupGmailWatch(
 }
 
 /**
+ * Stop Gmail push notifications for the current user.
+ * Errors are swallowed gracefully — the watch will expire naturally after 7 days anyway.
+ */
+export async function stopGmailWatch(session: SessionData): Promise<void> {
+  const gmail = getGmailClient(session)
+  try {
+    await gmail.users.stop({ userId: 'me' })
+    console.log(`[Gmail] Watch stopped for ${session.email}`)
+  } catch (err) {
+    // Non-fatal: watch expires after 7 days regardless
+    console.warn(`[Gmail] Failed to stop watch for ${session.email} (non-fatal):`, err)
+  }
+}
+
+/**
  * Fetch Gmail history since a given historyId to discover newly arrived messages.
  * Returns only message IDs that were added (INBOX additions).
  */

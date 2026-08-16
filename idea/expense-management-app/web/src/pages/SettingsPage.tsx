@@ -1,7 +1,28 @@
 import { useEffect, useState } from 'react'
-import { Bell, ChevronDown, ChevronRight, FolderTree, Plus, RefreshCw, Save, Trash2 } from 'lucide-react'
-import { fetchCategories, saveCategories, setupGmailWatch } from '../lib/api'
+import {
+  Bell,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  FolderTree,
+  Plus,
+  RefreshCw,
+  Save,
+  Trash2,
+  Wifi,
+  WifiOff,
+  X,
+} from 'lucide-react'
+import {
+  cancelGmailWatch,
+  fetchCategories,
+  fetchGmailStatus,
+  saveCategories,
+  setupGmailWatch,
+} from '../lib/api'
 import type { CategoryParent } from '../types'
+
+type SyncMode = 'webhook' | 'cron'
 
 export function SettingsPage() {
   const [categories, setCategories] = useState<CategoryParent[]>([])
@@ -13,11 +34,15 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
-  // Gmail Watch state
-  const [watchLoading, setWatchLoading] = useState(false)
+  // Sync Mode state
+  const [syncMode, setSyncMode] = useState<SyncMode | null>(null)
   const [watchExpiration, setWatchExpiration] = useState<string | null>(null)
+  const [watchLoading, setWatchLoading] = useState(false)
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [syncStatusLoading, setSyncStatusLoading] = useState(true)
   const [watchMessage, setWatchMessage] = useState<string | null>(null)
   const [watchError, setWatchError] = useState<string | null>(null)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
   useEffect(() => {
     fetchCategories()
@@ -27,6 +52,20 @@ export function SettingsPage() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Không tải được danh mục'))
       .finally(() => setLoading(false))
+  }, [])
+
+  // Load current sync mode on mount
+  useEffect(() => {
+    setSyncStatusLoading(true)
+    fetchGmailStatus()
+      .then((status) => {
+        setSyncMode(status.syncMode ?? 'cron')
+        setWatchExpiration(status.watchExpiration ?? null)
+      })
+      .catch(() => {
+        setSyncMode('cron')
+      })
+      .finally(() => setSyncStatusLoading(false))
   }, [])
 
   const toggleExpand = (id: string) => {
@@ -80,6 +119,43 @@ export function SettingsPage() {
       setSaving(false)
     }
   }
+
+  const handleActivateWebhook = async () => {
+    setWatchLoading(true)
+    setWatchError(null)
+    setWatchMessage(null)
+    try {
+      const result = await setupGmailWatch()
+      setSyncMode('webhook')
+      setWatchExpiration(result.expiration)
+      setWatchMessage(result.message)
+    } catch (err) {
+      setWatchError(err instanceof Error ? err.message : 'Đăng ký thất bại')
+    } finally {
+      setWatchLoading(false)
+    }
+  }
+
+  const handleCancelWebhook = async () => {
+    setCancelLoading(true)
+    setWatchError(null)
+    setWatchMessage(null)
+    setShowCancelConfirm(false)
+    try {
+      const result = await cancelGmailWatch()
+      setSyncMode('cron')
+      setWatchExpiration(null)
+      setWatchMessage(result.message)
+    } catch (err) {
+      setWatchError(err instanceof Error ? err.message : 'Huỷ thất bại')
+    } finally {
+      setCancelLoading(false)
+    }
+  }
+
+  const isWebhookActive = syncMode === 'webhook'
+  const isWebhookExpired =
+    watchExpiration ? new Date(watchExpiration).getTime() < Date.now() : false
 
   if (loading) {
     return (
@@ -230,57 +306,190 @@ export function SettingsPage() {
         </p>
       </div>
 
-      {/* Gmail Push Notification */}
+      {/* ── Sync Mode Panel ─────────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-700">
+        {/* Header */}
+        <div className="mb-1 flex items-center gap-2 text-sm font-medium text-slate-700">
           <Bell className="h-4 w-4 text-indigo-600" />
-          Gmail Push Notification (Watch)
+          Phương thức đồng bộ Email
         </div>
-
-        <p className="mb-4 text-sm text-slate-500">
-          Đăng ký nhận thông báo từ Gmail khi có email mới. Watch hết hạn sau 7 ngày — hệ thống tự gia hạn qua Vercel Cron mỗi 6 ngày.
+        <p className="mb-5 text-sm text-slate-500">
+          Chọn cách app theo dõi email mua hàng từ Gmail của bạn.
         </p>
 
         {watchError && (
-          <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {watchError}
           </div>
         )}
         {watchMessage && (
-          <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {watchMessage}
           </div>
         )}
 
-        {watchExpiration && (
-          <div className="mb-4 rounded-lg bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
-            <span className="font-medium">Hết hạn:</span>{' '}
-            {new Date(watchExpiration).toLocaleString('vi-VN')}
+        {syncStatusLoading ? (
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            Đang tải trạng thái...
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+
+            {/* ── Card: Webhook Realtime ─────────────────────────────────── */}
+            <div
+              className={`relative overflow-hidden rounded-2xl border-2 p-5 transition-all ${
+                isWebhookActive && !isWebhookExpired
+                  ? 'border-indigo-500 bg-indigo-50/60 shadow-md shadow-indigo-100'
+                  : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'
+              }`}
+            >
+              {/* Active pulse ring */}
+              {isWebhookActive && !isWebhookExpired && (
+                <span className="absolute right-4 top-4 flex h-3 w-3">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75" />
+                  <span className="relative inline-flex h-3 w-3 rounded-full bg-indigo-500" />
+                </span>
+              )}
+
+              <div className="mb-3 flex items-center gap-2">
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                    isWebhookActive && !isWebhookExpired
+                      ? 'bg-indigo-500 text-white'
+                      : 'bg-slate-200 text-slate-500'
+                  }`}
+                >
+                  <Wifi className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">Webhook Realtime</div>
+                  {isWebhookActive && !isWebhookExpired && (
+                    <span className="text-xs font-medium text-indigo-600">● Đang hoạt động</span>
+                  )}
+                  {isWebhookExpired && isWebhookActive && (
+                    <span className="text-xs font-medium text-amber-600">⚠ Watch đã hết hạn</span>
+                  )}
+                </div>
+              </div>
+
+              <p className="mb-4 text-xs leading-relaxed text-slate-500">
+                Email mua hàng được xử lý <strong className="text-slate-700">ngay khi nhận</strong> qua Gmail Pub/Sub.
+                Watch tự gia hạn mỗi 6 ngày. Cron-sync sẽ được tắt khi dùng chế độ này.
+              </p>
+
+              {isWebhookActive && !isWebhookExpired && watchExpiration && (
+                <div className="mb-4 flex items-center gap-1.5 rounded-lg bg-indigo-100 px-3 py-2 text-xs text-indigo-700">
+                  <Clock className="h-3.5 w-3.5 shrink-0" />
+                  Hết hạn: {new Date(watchExpiration).toLocaleString('vi-VN')}
+                </div>
+              )}
+
+              {isWebhookActive && !isWebhookExpired ? (
+                /* Cancel confirm flow */
+                showCancelConfirm ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-rose-700">Xác nhận chuyển sang Cron Schedule?</p>
+                    <div className="flex gap-2">
+                      <button
+                        id="confirm-cancel-watch-btn"
+                        type="button"
+                        onClick={handleCancelWebhook}
+                        disabled={cancelLoading}
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-60"
+                      >
+                        {cancelLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                        {cancelLoading ? 'Đang huỷ...' : 'Xác nhận huỷ'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowCancelConfirm(false)}
+                        className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                      >
+                        Giữ lại
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    id="cancel-watch-btn"
+                    type="button"
+                    onClick={() => setShowCancelConfirm(true)}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-medium text-rose-600 transition hover:border-rose-300 hover:bg-rose-50"
+                  >
+                    <WifiOff className="h-3.5 w-3.5" />
+                    Huỷ / Chuyển sang Cron
+                  </button>
+                )
+              ) : (
+                <button
+                  id="activate-watch-btn"
+                  type="button"
+                  onClick={handleActivateWebhook}
+                  disabled={watchLoading}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                >
+                  {watchLoading ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wifi className="h-4 w-4" />
+                  )}
+                  {watchLoading
+                    ? 'Đang đăng ký...'
+                    : isWebhookExpired
+                      ? 'Gia hạn Watch'
+                      : 'Bật Webhook Realtime'}
+                </button>
+              )}
+            </div>
+
+            {/* ── Card: Cron Schedule ────────────────────────────────────── */}
+            <div
+              className={`rounded-2xl border-2 p-5 transition-all ${
+                syncMode === 'cron'
+                  ? 'border-emerald-400 bg-emerald-50/50 shadow-md shadow-emerald-100'
+                  : 'border-slate-200 bg-slate-50/50'
+              }`}
+            >
+              <div className="mb-3 flex items-center gap-2">
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                    syncMode === 'cron' ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'
+                  }`}
+                >
+                  <Clock className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">Cron Schedule</div>
+                  {syncMode === 'cron' && (
+                    <span className="text-xs font-medium text-emerald-600">● Đang hoạt động</span>
+                  )}
+                </div>
+              </div>
+
+              <p className="mb-4 text-xs leading-relaxed text-slate-500">
+                App tự động quét Gmail <strong className="text-slate-700">mỗi 6 giờ</strong> để tìm email mua hàng mới.
+                Không cần cấu hình Pub/Sub. Phù hợp khi không có GCP project.
+              </p>
+
+              <div className="mb-4 flex items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-2 text-xs text-emerald-700">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                Lịch chạy: mỗi 6 giờ (00:00, 06:00, 12:00, 18:00 UTC)
+              </div>
+
+              <div
+                className={`flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-medium ${
+                  syncMode === 'cron'
+                    ? 'cursor-default bg-emerald-500 text-white'
+                    : 'cursor-default border border-slate-200 bg-white text-slate-400'
+                }`}
+              >
+                <Clock className="h-4 w-4" />
+                {syncMode === 'cron' ? 'Đang dùng Cron Schedule' : 'Cron Schedule (không hoạt động)'}
+              </div>
+            </div>
           </div>
         )}
-
-        <button
-          type="button"
-          onClick={async () => {
-            setWatchLoading(true)
-            setWatchError(null)
-            setWatchMessage(null)
-            try {
-              const result = await setupGmailWatch()
-              setWatchExpiration(result.expiration)
-              setWatchMessage(result.message)
-            } catch (err) {
-              setWatchError(err instanceof Error ? err.message : 'Đăng ký thất bại')
-            } finally {
-              setWatchLoading(false)
-            }
-          }}
-          disabled={watchLoading}
-          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-        >
-          <RefreshCw className={`h-4 w-4 ${watchLoading ? 'animate-spin' : ''}`} />
-          {watchLoading ? 'Đang đăng ký...' : 'Đăng ký / Gia hạn Watch'}
-        </button>
       </div>
     </div>
   )

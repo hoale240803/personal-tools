@@ -10,8 +10,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!session) return unauthorized(res)
 
   try {
-    const state = await getSyncState(session)
-    ok(res, state)
+    const { lastSyncedAt, syncMode, watchExpiration } = await getSyncState(session)
+    ok(res, { lastSyncedAt, syncMode, watchExpiration })
   } catch (error) {
     serverError(res, error)
   }

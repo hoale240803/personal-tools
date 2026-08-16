@@ -1,5 +1,6 @@
 import type { SessionData } from './session'
 import { getSheetsClient } from './google'
+import type { SyncMode } from './env'
 import {
   CATEGORY_HEADERS,
   ERROR_LOG_HEADERS,
@@ -136,7 +137,7 @@ async function ensureSheetHeaders(session: SessionData) {
   })
   await sheets.spreadsheets.values.update({
     spreadsheetId: id,
-    range: `${SHEET_NAMES.syncState}!A1:C1`,
+    range: `${SHEET_NAMES.syncState}!A1:E1`,
     valueInputOption: 'RAW',
     requestBody: { values: [SYNC_STATE_HEADERS as unknown as string[]] },
   })
@@ -407,35 +408,96 @@ export async function getSyncState(session: SessionData) {
   const sheets = getSheetsClient(session)
   const { data } = await sheets.spreadsheets.values.get({
     spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.syncState}!A2:C`,
+    range: `${SHEET_NAMES.syncState}!A2:E`,
   })
 
   const row = (data.values ?? []).find((r) => r[0] === session.email)
   return {
     lastSyncedAt: row?.[2] ? String(row[2]) : null,
+    syncMode: (row?.[3] ? String(row[3]) : 'cron') as SyncMode,
+    watchExpiration: row?.[4] ? String(row[4]) : null,
   }
 }
 
-export async function updateSyncState(session: SessionData, lastSyncedAt: string) {
+export async function updateSyncState(
+  session: SessionData,
+  lastSyncedAt: string,
+  options?: { syncMode?: SyncMode; watchExpiration?: string | null },
+) {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
   const { data } = await sheets.spreadsheets.values.get({
     spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.syncState}!A2:C`,
+    range: `${SHEET_NAMES.syncState}!A2:E`,
   })
 
   const rows = (data.values ?? []).map((row) => [...row.map(String)])
   const index = rows.findIndex((row) => row[0] === session.email)
 
   if (index >= 0) {
-    rows[index] = [session.email, rows[index][1] ?? '', lastSyncedAt]
+    const existing = rows[index]
+    rows[index] = [
+      session.email,
+      existing[1] ?? '',                            // lastHistoryId
+      lastSyncedAt,                                  // lastSyncedAt
+      options?.syncMode ?? existing[3] ?? 'cron',   // syncMode
+      options?.watchExpiration !== undefined
+        ? (options.watchExpiration ?? '')             // allow explicit null → clear
+        : (existing[4] ?? ''),                       // watchExpiration
+    ]
   } else {
-    rows.push([session.email, '', lastSyncedAt])
+    rows.push([
+      session.email,
+      '',
+      lastSyncedAt,
+      options?.syncMode ?? 'cron',
+      options?.watchExpiration ?? '',
+    ])
   }
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.syncState}!A2:C${rows.length + 1}`,
+    range: `${SHEET_NAMES.syncState}!A2:E${rows.length + 1}`,
+    valueInputOption: 'RAW',
+    requestBody: { values: rows },
+  })
+}
+
+/**
+ * Update only the syncMode and watchExpiration fields in SyncState,
+ * without touching lastSyncedAt or lastHistoryId.
+ */
+export async function updateSyncMode(
+  session: SessionData,
+  syncMode: SyncMode,
+  watchExpiration?: string | null,
+) {
+  await ensureSheetHeaders(session)
+  const sheets = getSheetsClient(session)
+  const { data } = await sheets.spreadsheets.values.get({
+    spreadsheetId: spreadsheetId(session),
+    range: `${SHEET_NAMES.syncState}!A2:E`,
+  })
+
+  const rows = (data.values ?? []).map((row) => [...row.map(String)])
+  const index = rows.findIndex((row) => row[0] === session.email)
+
+  if (index >= 0) {
+    const existing = rows[index]
+    rows[index] = [
+      session.email,
+      existing[1] ?? '',
+      existing[2] ?? '',
+      syncMode,
+      watchExpiration !== undefined ? (watchExpiration ?? '') : (existing[4] ?? ''),
+    ]
+  } else {
+    rows.push([session.email, '', '', syncMode, watchExpiration ?? ''])
+  }
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: spreadsheetId(session),
+    range: `${SHEET_NAMES.syncState}!A2:E${rows.length + 1}`,
     valueInputOption: 'RAW',
     requestBody: { values: rows },
   })

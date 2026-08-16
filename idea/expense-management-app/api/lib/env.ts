@@ -57,7 +57,10 @@ export const EXPENSE_HEADERS = [
 
 export const CATEGORY_HEADERS = ['parentId', 'parentName', 'childId', 'childName'] as const
 
-export const SYNC_STATE_HEADERS = ['userEmail', 'lastHistoryId', 'lastSyncedAt'] as const
+// userEmail | lastHistoryId | lastSyncedAt | syncMode | watchExpiration
+export const SYNC_STATE_HEADERS = ['userEmail', 'lastHistoryId', 'lastSyncedAt', 'syncMode', 'watchExpiration'] as const
+
+export type SyncMode = 'webhook' | 'cron'
 
 // syncId | userEmail | startDate | endDate | totalMessages | processedCount | successCount | failCount | errorMessages (JSON) | duration (ms) | syncType | syncedAt
 export const SYNC_HISTORY_HEADERS = [

@@ -118,7 +118,9 @@ export function syncGmail(dateRange?: SyncDateRange) {
 }
 
 export function fetchGmailStatus() {
-  return request<{ lastSyncedAt: string | null }>(`${API_BASE}/api/gmail/status`)
+  return request<{ lastSyncedAt: string | null; syncMode: 'webhook' | 'cron'; watchExpiration: string | null }>(
+    `${API_BASE}/api/gmail/status`,
+  )
 }
 
 export function fetchSyncHistory() {
@@ -126,9 +128,16 @@ export function fetchSyncHistory() {
 }
 
 export function setupGmailWatch() {
-  return request<{ historyId: string; expiration: string; message: string }>(
+  return request<{ historyId: string; expiration: string; syncMode: 'webhook' | 'cron'; message: string }>(
     `${API_BASE}/api/gmail/watch`,
-    { method: 'POST' },
+    { method: 'POST', body: JSON.stringify({ action: 'register' }) },
+  )
+}
+
+export function cancelGmailWatch() {
+  return request<{ cancelled: boolean; syncMode: 'webhook' | 'cron'; message: string }>(
+    `${API_BASE}/api/gmail/watch`,
+    { method: 'POST', body: JSON.stringify({ action: 'cancel' }) },
   )
 }
 
