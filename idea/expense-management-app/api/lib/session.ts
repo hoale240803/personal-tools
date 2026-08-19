@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
-import { SignJWT, jwtVerify } from 'jose'
+import { SignJWT, jwtVerify, decodeJwt } from 'jose'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getEnv } from './env'
 
@@ -31,7 +31,8 @@ export function loadDevSession(): SessionData | null {
 }
 
 const COOKIE_NAME = 'session'
-const MAX_AGE_SECONDS = 7 * 24 * 60 * 60
+const MAX_AGE_SECONDS = 90 * 24 * 60 * 60 // 90 days
+const REFRESH_THRESHOLD_SECONDS = 7 * 24 * 60 * 60 // renew if < 7 days remaining
 
 export interface SessionData {
   email: string
@@ -87,13 +88,18 @@ export async function readSessionByEmail(email: string): Promise<SessionData | n
   return null
 }
 
+function isSessionValid(session: SessionData): boolean {
+  // If refresh token is missing, session cannot be renewed — force re-login
+  return Boolean(session.refreshToken)
+}
+
 export async function readSession(req: VercelRequest): Promise<SessionData | null> {
   const token = parseCookies(req.headers.cookie)[COOKIE_NAME]
 
   if (token) {
     try {
       const { payload } = await jwtVerify(token, getSecret())
-      return {
+      const session: SessionData = {
         email: String(payload.email),
         name: String(payload.name),
         picture: String(payload.picture),
@@ -101,12 +107,61 @@ export async function readSession(req: VercelRequest): Promise<SessionData | nul
         refreshToken: String(payload.refreshToken),
         spreadsheetId: String(payload.spreadsheetId ?? ''),
       }
+      if (!isSessionValid(session)) return null
+      return session
     } catch {
       // JWT invalid or expired — fall through to dev session fallback
     }
   }
 
-  return loadDevSession()
+  const devSession = loadDevSession()
+  if (devSession && !isSessionValid(devSession)) return null
+  return devSession
+}
+
+/**
+ * Rolls the session cookie if it is within the refresh threshold.
+ * Call this at the start of authenticated endpoints to keep the session alive.
+ * Also updates the session data (e.g. new accessToken after Google refresh).
+ */
+export async function refreshSessionIfNeeded(
+  req: VercelRequest,
+  res: VercelResponse,
+  updatedSession?: SessionData,
+): Promise<void> {
+  const token = parseCookies(req.headers.cookie)[COOKIE_NAME]
+  if (!token && !updatedSession) return
+
+  let session = updatedSession
+  let shouldRefresh = Boolean(updatedSession) // always refresh if we have new session data
+
+  if (!session && token) {
+    try {
+      const payload = decodeJwt(token)
+      const exp = payload.exp ?? 0
+      const now = Math.floor(Date.now() / 1000)
+      const remaining = exp - now
+      if (remaining < REFRESH_THRESHOLD_SECONDS) {
+        shouldRefresh = true
+        session = {
+          email: String(payload.email),
+          name: String(payload.name),
+          picture: String(payload.picture),
+          accessToken: String(payload.accessToken),
+          refreshToken: String(payload.refreshToken),
+          spreadsheetId: String(payload.spreadsheetId ?? ''),
+        }
+      }
+    } catch {
+      // Ignore decode errors
+    }
+  }
+
+  if (shouldRefresh && session) {
+    const newToken = await createSessionToken(session)
+    setSessionCookie(res, newToken)
+    persistDevSession(session)
+  }
 }
 
 export function setSessionCookie(res: VercelResponse, token: string) {

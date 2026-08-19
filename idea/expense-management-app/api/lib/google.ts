@@ -1,6 +1,7 @@
 import { google } from 'googleapis'
 import { getEnv, GOOGLE_SCOPES } from './env'
 import type { SessionData } from './session'
+import { createSessionToken, setSessionCookie, persistDevSession } from './session'
 
 export function createOAuth2Client(redirectUri?: string) {
   return new google.auth.OAuth2(
@@ -57,16 +58,56 @@ export function getAuthedClient(session: SessionData) {
   return client
 }
 
-export function getSheetsClient(session: SessionData) {
-  return google.sheets({ version: 'v4', auth: getAuthedClient(session) })
+/**
+ * Creates an authenticated Google OAuth2 client that automatically refreshes
+ * the access token when it expires. If a new access token is obtained, the
+ * session cookie is updated so the user stays logged in.
+ *
+ * @param session - Current session data containing tokens
+ * @param res - Vercel response object to update the session cookie (optional)
+ * @param updatedSessionRef - Optional object to receive updated session data
+ */
+export function getAuthedClientWithRefresh(
+  session: SessionData,
+  res?: import('@vercel/node').VercelResponse,
+): ReturnType<typeof createOAuth2Client> {
+  const client = createOAuth2Client()
+  client.setCredentials({
+    access_token: session.accessToken,
+    refresh_token: session.refreshToken,
+  })
+
+  // When Google auto-refreshes the access token, update our session cookie
+  client.on('tokens', (tokens) => {
+    if (tokens.access_token && res) {
+      const updatedSession: SessionData = {
+        ...session,
+        accessToken: tokens.access_token,
+        // refresh_token is only returned on first auth; keep existing if not returned
+        refreshToken: tokens.refresh_token ?? session.refreshToken,
+      }
+      createSessionToken(updatedSession)
+        .then((newToken) => {
+          setSessionCookie(res, newToken)
+          persistDevSession(updatedSession)
+        })
+        .catch((err) => console.error('[Session] Failed to update session cookie after token refresh:', err))
+    }
+  })
+
+  return client
 }
 
-export function getDriveClient(session: SessionData) {
-  return google.drive({ version: 'v3', auth: getAuthedClient(session) })
+export function getSheetsClient(session: SessionData, res?: import('@vercel/node').VercelResponse) {
+  return google.sheets({ version: 'v4', auth: getAuthedClientWithRefresh(session, res) })
 }
 
-export function getGmailClient(session: SessionData) {
-  return google.gmail({ version: 'v1', auth: getAuthedClient(session) })
+export function getDriveClient(session: SessionData, res?: import('@vercel/node').VercelResponse) {
+  return google.drive({ version: 'v3', auth: getAuthedClientWithRefresh(session, res) })
+}
+
+export function getGmailClient(session: SessionData, res?: import('@vercel/node').VercelResponse) {
+  return google.gmail({ version: 'v1', auth: getAuthedClientWithRefresh(session, res) })
 }
 
 const SPREADSHEET_TITLE = 'Expense Tracker — Personal Tools'
