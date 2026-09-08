@@ -4,12 +4,13 @@ import { parsePurchaseEmailsBatch } from '../lib/gemini'
 import { listPurchaseMessages, type DateRange } from '../lib/gmail'
 import { methodNotAllowed, ok, serverError } from '../lib/response'
 import {
-  appendExpense,
+  appendExpensesBatch,
   appendSyncHistory,
   getCategories,
   getExistingMessageIds,
   getSyncState,
   updateSyncState,
+  type ExpenseRow,
   type SyncErrorItem,
 } from '../lib/sheets'
 import { loadDevSession, type SessionData } from '../lib/session'
@@ -247,14 +248,11 @@ async function syncUserEmails(
       )
     }
 
-    // ── Save each unique purchase ──────────────────────────────────────────
+    // ── Batch collect & write all valid purchases ─────────────────────────
+    const expensesToSave: ExpenseRow[] = []
+
     for (const [key, { message, parsed }] of dedupMap) {
       const allIdsInGroup = dedupGroupIds.get(key) ?? [message.id]
-
-      console.log(
-        `[CronSync] Processing id=${message.id} subject="${message.subject}":`,
-        `isPurchaseEmail=${parsed.isPurchaseEmail} amount=${parsed.amount} ${parsed.currency}`,
-      )
 
       if (parsed.amount <= 0) {
         console.log(`[CronSync] SKIP: amount=${parsed.amount} (no charge in email)`)
@@ -263,33 +261,42 @@ async function syncUserEmails(
         continue
       }
 
+      const expense: ExpenseRow = {
+        id: randomUUID(),
+        purchaseDate: message.receivedDate,
+        name: parsed.name || message.subject,
+        parentCategory: parsed.parentCategory,
+        category: `${parsed.parentCategory} > ${parsed.childCategory}`,
+        amount: parsed.amount,
+        platform: parsed.platform,
+        status: parsed.status,
+        orderId: parsed.orderId,
+        imageUrl: message.imageUrl,
+        gmailMessageId: message.id,
+        createdAt: new Date().toISOString(),
+      }
+      expensesToSave.push(expense)
+
+      console.log(
+        `[CronSync] Queued: "${expense.name}" ${parsed.amount} ${parsed.currency}`,
+        allIdsInGroup.length > 1 ? `(covers ${allIdsInGroup.length} emails)` : '',
+      )
+
+      for (const id of allIdsInGroup) existingIds.add(id)
+    }
+
+    // ── Single batch write ──────────────────────────────────────────
+    if (expensesToSave.length > 0) {
       try {
-        await appendExpense(session, {
-          id: randomUUID(),
-          purchaseDate: message.receivedDate,
-          name: parsed.name || message.subject,
-          parentCategory: parsed.parentCategory,
-          category: `${parsed.parentCategory} > ${parsed.childCategory}`,
-          amount: parsed.amount,
-          platform: parsed.platform,
-          status: parsed.status,
-          orderId: parsed.orderId,
-          imageUrl: message.imageUrl,
-          gmailMessageId: message.id,
-          createdAt: new Date().toISOString(),
-        })
-
-        console.log(
-          `[CronSync] SAVED: "${parsed.name || message.subject}" ${parsed.amount} ${parsed.currency}`,
-          allIdsInGroup.length > 1 ? `(covers ${allIdsInGroup.length} emails)` : '',
-        )
-
-        for (const id of allIdsInGroup) existingIds.add(id)
-        synced++
+        await appendExpensesBatch(session, expensesToSave)
+        synced = expensesToSave.length
+        console.log(`[CronSync] Batch saved ${synced} expense(s) in 1 API call`)
       } catch (saveErr) {
         const errMsg = saveErr instanceof Error ? saveErr.message : String(saveErr)
-        console.error(`[CronSync] FAILED to save messageId=${message.id}: ${errMsg}`)
-        errors.push({ messageId: message.id, subject: message.subject, error: errMsg })
+        console.error(`[CronSync] FAILED batch save: ${errMsg}`)
+        for (const e of expensesToSave) {
+          errors.push({ messageId: e.gmailMessageId, subject: e.name, error: errMsg })
+        }
       }
     }
 

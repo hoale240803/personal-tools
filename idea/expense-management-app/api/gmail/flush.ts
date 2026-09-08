@@ -5,12 +5,13 @@ import { getMessageById } from '../lib/gmail'
 import { logError } from '../lib/error-logger'
 import { methodNotAllowed, ok } from '../lib/response'
 import {
-  appendExpense,
+  appendExpensesBatch,
   appendSyncHistory,
   getCategories,
   getExistingMessageIds,
   getPendingMessages,
   markPendingMessagesProcessed,
+  type ExpenseRow,
   type SyncErrorItem,
 } from '../lib/sheets'
 import { readSession, readSessionByEmail } from '../lib/session'
@@ -161,6 +162,9 @@ async function processPipelineBatch(
   const errors: SyncErrorItem[] = []
   const processedMessageIds = pendingItems.map((i) => i.messageId)
 
+  // ── Batch collect all valid expense rows ──────────────────────────
+  const expensesToSave: ExpenseRow[] = []
+
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i]
     const parsed = parsedResults[i]
@@ -177,29 +181,34 @@ async function processPipelineBatch(
       continue
     }
 
-    try {
-      await appendExpense(session, {
-        id: randomUUID(),
-        purchaseDate: message.receivedDate,
-        name: parsed.name || message.subject,
-        parentCategory: parsed.parentCategory,
-        category: `${parsed.parentCategory} > ${parsed.childCategory}`,
-        amount: parsed.amount,
-        platform: parsed.platform,
-        status: parsed.status,
-        orderId: parsed.orderId,
-        imageUrl: message.imageUrl,
-        gmailMessageId: message.id,
-        createdAt: new Date().toISOString(),
-      })
+    expensesToSave.push({
+      id: randomUUID(),
+      purchaseDate: message.receivedDate,
+      name: parsed.name || message.subject,
+      parentCategory: parsed.parentCategory,
+      category: `${parsed.parentCategory} > ${parsed.childCategory}`,
+      amount: parsed.amount,
+      platform: parsed.platform,
+      status: parsed.status,
+      orderId: parsed.orderId,
+      imageUrl: message.imageUrl,
+      gmailMessageId: message.id,
+      createdAt: new Date().toISOString(),
+    })
+  }
 
-      existingIds.add(message.id)
-      synced++
-      console.log(`[Flush] SAVED: "${parsed.name || message.subject}" ${parsed.amount}`)
+  // ── Single batch write ─────────────────────────────────────────
+  if (expensesToSave.length > 0) {
+    try {
+      await appendExpensesBatch(session, expensesToSave)
+      synced = expensesToSave.length
+      console.log(`[Flush] Batch saved ${synced} expense(s) in 1 API call`)
     } catch (saveErr) {
       const errMsg = saveErr instanceof Error ? saveErr.message : String(saveErr)
-      console.error(`[Flush] FAILED messageId=${message.id}: ${errMsg}`)
-      errors.push({ messageId: message.id, subject: message.subject, error: errMsg })
+      console.error(`[Flush] FAILED batch save: ${errMsg}`)
+      for (const e of expensesToSave) {
+        errors.push({ messageId: e.gmailMessageId, subject: e.name, error: errMsg })
+      }
     }
   }
 

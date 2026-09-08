@@ -11,6 +11,38 @@ import {
   SYNC_STATE_HEADERS,
 } from './env'
 
+// ─── Retry helper with exponential backoff ────────────────────────────────────
+
+/**
+ * Wraps a Google Sheets API call with automatic retry on 429 (RESOURCE_EXHAUSTED).
+ * Backoff: 2^attempt seconds + random jitter (0–500ms).
+ * Max delay before final throw: ~8.5s total wait across 3 retries.
+ */
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      const code = (err as { code?: number })?.code
+      const isQuotaError =
+        code === 429 ||
+        msg.includes('RESOURCE_EXHAUSTED') ||
+        msg.includes('Quota exceeded')
+
+      if (!isQuotaError || attempt === maxRetries) throw err
+
+      const delayMs = 2 ** attempt * 1000 + Math.random() * 500
+      console.warn(
+        `[Sheets] 429 quota hit — retry ${attempt + 1}/${maxRetries} in ${Math.round(delayMs)}ms`,
+      )
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+    }
+  }
+  // Should never reach here
+  throw new Error('[Sheets] withRetry: exhausted retries')
+}
+
 export interface ExpenseRow {
   id: string
   purchaseDate: string
@@ -93,10 +125,10 @@ async function ensureSheetHeaders(session: SessionData) {
   const sheets = getSheetsClient(session)
   const id = spreadsheetId(session)
 
-  const meta = await sheets.spreadsheets.get({ spreadsheetId: id })
+  const meta = await withRetry(() => sheets.spreadsheets.get({ spreadsheetId: id }))
   const existing = new Set(meta.data.sheets?.map((s) => s.properties?.title) ?? [])
 
-  const requests = []
+  const requests: { addSheet: { properties: { title: string } } }[] = []
   if (!existing.has(SHEET_NAMES.expenses)) {
     requests.push({ addSheet: { properties: { title: SHEET_NAMES.expenses } } })
   }
@@ -117,57 +149,73 @@ async function ensureSheetHeaders(session: SessionData) {
   }
 
   if (requests.length > 0) {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: id,
-      requestBody: { requests },
-    })
+    await withRetry(() =>
+      sheets.spreadsheets.batchUpdate({
+        spreadsheetId: id,
+        requestBody: { requests },
+      }),
+    )
   }
 
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: id,
-    range: `${SHEET_NAMES.expenses}!A1:L1`,
-    valueInputOption: 'RAW',
-    requestBody: { values: [EXPENSE_HEADERS as unknown as string[]] },
-  })
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: id,
-    range: `${SHEET_NAMES.categories}!A1:D1`,
-    valueInputOption: 'RAW',
-    requestBody: { values: [CATEGORY_HEADERS as unknown as string[]] },
-  })
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: id,
-    range: `${SHEET_NAMES.syncState}!A1:E1`,
-    valueInputOption: 'RAW',
-    requestBody: { values: [SYNC_STATE_HEADERS as unknown as string[]] },
-  })
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: id,
-    range: `${SHEET_NAMES.syncHistory}!A1:L1`,
-    valueInputOption: 'RAW',
-    requestBody: { values: [SYNC_HISTORY_HEADERS as unknown as string[]] },
-  })
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: id,
-    range: `${SHEET_NAMES.pendingQueue}!A1:F1`,
-    valueInputOption: 'RAW',
-    requestBody: { values: [PENDING_QUEUE_HEADERS as unknown as string[]] },
-  })
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: id,
-    range: `${SHEET_NAMES.errorLog}!A1:I1`,
-    valueInputOption: 'RAW',
-    requestBody: { values: [ERROR_LOG_HEADERS as unknown as string[]] },
-  })
+  await withRetry(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: `${SHEET_NAMES.expenses}!A1:L1`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [EXPENSE_HEADERS as unknown as string[]] },
+    }),
+  )
+  await withRetry(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: `${SHEET_NAMES.categories}!A1:D1`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [CATEGORY_HEADERS as unknown as string[]] },
+    }),
+  )
+  await withRetry(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: `${SHEET_NAMES.syncState}!A1:E1`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [SYNC_STATE_HEADERS as unknown as string[]] },
+    }),
+  )
+  await withRetry(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: `${SHEET_NAMES.syncHistory}!A1:L1`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [SYNC_HISTORY_HEADERS as unknown as string[]] },
+    }),
+  )
+  await withRetry(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: `${SHEET_NAMES.pendingQueue}!A1:F1`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [PENDING_QUEUE_HEADERS as unknown as string[]] },
+    }),
+  )
+  await withRetry(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: `${SHEET_NAMES.errorLog}!A1:I1`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [ERROR_LOG_HEADERS as unknown as string[]] },
+    }),
+  )
 }
 
 async function readExpenseRows(session: SessionData): Promise<ExpenseRow[]> {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.expenses}!A2:L`,
-  })
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.expenses}!A2:L`,
+    }),
+  )
 
   return (data.values ?? [])
     .filter((row) => row[0])
@@ -222,30 +270,67 @@ export async function getExistingMessageIds(session: SessionData): Promise<Set<s
 export async function appendExpense(session: SessionData, expense: ExpenseRow) {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.expenses}!A:L`,
-    valueInputOption: 'RAW',
-    insertDataOption: 'INSERT_ROWS',
-    requestBody: {
-      values: [
-        [
-          expense.id,
-          expense.purchaseDate,
-          expense.name,
-          expense.parentCategory,
-          expense.category,
-          expense.amount,
-          expense.platform,
-          expense.status,
-          expense.orderId,
-          expense.imageUrl,
-          expense.gmailMessageId,
-          expense.createdAt,
+  await withRetry(() =>
+    sheets.spreadsheets.values.append({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.expenses}!A:L`,
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [
+          [
+            expense.id,
+            expense.purchaseDate,
+            expense.name,
+            expense.parentCategory,
+            expense.category,
+            expense.amount,
+            expense.platform,
+            expense.status,
+            expense.orderId,
+            expense.imageUrl,
+            expense.gmailMessageId,
+            expense.createdAt,
+          ],
         ],
-      ],
-    },
-  })
+      },
+    }),
+  )
+}
+
+/**
+ * Batch-append multiple expense rows in a single API call.
+ * This is the preferred method for sync operations to avoid hitting
+ * the Google Sheets API write quota (60 req/min).
+ */
+export async function appendExpensesBatch(session: SessionData, expenses: ExpenseRow[]) {
+  if (expenses.length === 0) return
+  await ensureSheetHeaders(session)
+  const sheets = getSheetsClient(session)
+  const rows = expenses.map((e) => [
+    e.id,
+    e.purchaseDate,
+    e.name,
+    e.parentCategory,
+    e.category,
+    e.amount,
+    e.platform,
+    e.status,
+    e.orderId,
+    e.imageUrl,
+    e.gmailMessageId,
+    e.createdAt,
+  ])
+  await withRetry(() =>
+    sheets.spreadsheets.values.append({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.expenses}!A:L`,
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: rows },
+    }),
+  )
+  console.log(`[Sheets] appendExpensesBatch: saved ${expenses.length} rows in 1 API call`)
 }
 
 export async function updateExpense(
@@ -257,10 +342,12 @@ export async function updateExpense(
   const sheets = getSheetsClient(session)
   const sid = spreadsheetId(session)
 
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: sid,
-    range: `${SHEET_NAMES.expenses}!A2:L`,
-  })
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: sid,
+      range: `${SHEET_NAMES.expenses}!A2:L`,
+    }),
+  )
 
   const rows = data.values ?? []
   const rowIndex = rows.findIndex((row) => String(row[0]) === id)
@@ -275,29 +362,31 @@ export async function updateExpense(
   }
 
   const sheetRow = rowIndex + 2 // +1 for header, +1 for 1-indexed
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: sid,
-    range: `${SHEET_NAMES.expenses}!A${sheetRow}:L${sheetRow}`,
-    valueInputOption: 'RAW',
-    requestBody: {
-      values: [
-        [
-          updated.id,
-          updated.purchaseDate,
-          updated.name,
-          updated.parentCategory,
-          updated.category,
-          updated.amount,
-          updated.platform,
-          updated.status,
-          updated.orderId,
-          updated.imageUrl,
-          updated.gmailMessageId,
-          updated.createdAt,
+  await withRetry(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: sid,
+      range: `${SHEET_NAMES.expenses}!A${sheetRow}:L${sheetRow}`,
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [
+          [
+            updated.id,
+            updated.purchaseDate,
+            updated.name,
+            updated.parentCategory,
+            updated.category,
+            updated.amount,
+            updated.platform,
+            updated.status,
+            updated.orderId,
+            updated.imageUrl,
+            updated.gmailMessageId,
+            updated.createdAt,
+          ],
         ],
-      ],
-    },
-  })
+      },
+    }),
+  )
 
   return updated
 }
@@ -308,7 +397,7 @@ export async function deleteExpense(session: SessionData, id: string) {
   const sid = spreadsheetId(session)
 
   // Get sheet metadata to find the sheetId for batchUpdate
-  const meta = await sheets.spreadsheets.get({ spreadsheetId: sid })
+  const meta = await withRetry(() => sheets.spreadsheets.get({ spreadsheetId: sid }))
   const expensesSheet = meta.data.sheets?.find(
     (s) => s.properties?.title === SHEET_NAMES.expenses,
   )
@@ -318,42 +407,48 @@ export async function deleteExpense(session: SessionData, id: string) {
   const sheetId = expensesSheet.properties.sheetId
 
   // Find the row index
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: sid,
-    range: `${SHEET_NAMES.expenses}!A2:A`,
-  })
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: sid,
+      range: `${SHEET_NAMES.expenses}!A2:A`,
+    }),
+  )
 
   const ids = (data.values ?? []).map((row) => String(row[0]))
   const rowIndex = ids.indexOf(id)
   if (rowIndex < 0) throw new Error(`Expense not found: ${id}`)
 
   // Delete the row (rowIndex + 1 for header row offset)
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId: sid,
-    requestBody: {
-      requests: [
-        {
-          deleteDimension: {
-            range: {
-              sheetId,
-              dimension: 'ROWS',
-              startIndex: rowIndex + 1, // +1 for the header row
-              endIndex: rowIndex + 2,
+  await withRetry(() =>
+    sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sid,
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId,
+                dimension: 'ROWS',
+                startIndex: rowIndex + 1, // +1 for the header row
+                endIndex: rowIndex + 2,
+              },
             },
           },
-        },
-      ],
-    },
-  })
+        ],
+      },
+    }),
+  )
 }
 
 export async function getCategories(session: SessionData): Promise<CategoryParent[]> {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.categories}!A2:D`,
-  })
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.categories}!A2:D`,
+    }),
+  )
 
   const parents = new Map<string, CategoryParent>()
 
@@ -388,28 +483,34 @@ export async function saveCategories(session: SessionData, categories: CategoryP
     }
   }
 
-  await sheets.spreadsheets.values.clear({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.categories}!A2:D`,
-  })
+  await withRetry(() =>
+    sheets.spreadsheets.values.clear({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.categories}!A2:D`,
+    }),
+  )
 
   if (rows.length > 0) {
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: spreadsheetId(session),
-      range: `${SHEET_NAMES.categories}!A2`,
-      valueInputOption: 'RAW',
-      requestBody: { values: rows },
-    })
+    await withRetry(() =>
+      sheets.spreadsheets.values.update({
+        spreadsheetId: spreadsheetId(session),
+        range: `${SHEET_NAMES.categories}!A2`,
+        valueInputOption: 'RAW',
+        requestBody: { values: rows },
+      }),
+    )
   }
 }
 
 export async function getSyncState(session: SessionData) {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.syncState}!A2:E`,
-  })
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.syncState}!A2:E`,
+    }),
+  )
 
   const row = (data.values ?? []).find((r) => r[0] === session.email)
   return {
@@ -426,10 +527,12 @@ export async function updateSyncState(
 ) {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.syncState}!A2:E`,
-  })
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.syncState}!A2:E`,
+    }),
+  )
 
   const rows = (data.values ?? []).map((row) => [...row.map(String)])
   const index = rows.findIndex((row) => row[0] === session.email)
@@ -455,12 +558,14 @@ export async function updateSyncState(
     ])
   }
 
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.syncState}!A2:E${rows.length + 1}`,
-    valueInputOption: 'RAW',
-    requestBody: { values: rows },
-  })
+  await withRetry(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.syncState}!A2:E${rows.length + 1}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: rows },
+    }),
+  )
 }
 
 /**
@@ -474,10 +579,12 @@ export async function updateSyncMode(
 ) {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.syncState}!A2:E`,
-  })
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.syncState}!A2:E`,
+    }),
+  )
 
   const rows = (data.values ?? []).map((row) => [...row.map(String)])
   const index = rows.findIndex((row) => row[0] === session.email)
@@ -495,12 +602,14 @@ export async function updateSyncMode(
     rows.push([session.email, '', '', syncMode, watchExpiration ?? ''])
   }
 
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.syncState}!A2:E${rows.length + 1}`,
-    valueInputOption: 'RAW',
-    requestBody: { values: rows },
-  })
+  await withRetry(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.syncState}!A2:E${rows.length + 1}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: rows },
+    }),
+  )
 }
 
 // ─── SyncHistory ──────────────────────────────────────────────────────────────
@@ -508,30 +617,32 @@ export async function updateSyncMode(
 export async function appendSyncHistory(session: SessionData, record: SyncHistoryRecord) {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.syncHistory}!A:L`,
-    valueInputOption: 'RAW',
-    insertDataOption: 'INSERT_ROWS',
-    requestBody: {
-      values: [
-        [
-          record.syncId,
-          record.userEmail,
-          record.startDate,
-          record.endDate,
-          record.totalMessages,
-          record.processedCount,
-          record.successCount,
-          record.failCount,
-          JSON.stringify(record.errorMessages),
-          record.duration,
-          record.syncType,
-          record.syncedAt,
+  await withRetry(() =>
+    sheets.spreadsheets.values.append({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.syncHistory}!A:L`,
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [
+          [
+            record.syncId,
+            record.userEmail,
+            record.startDate,
+            record.endDate,
+            record.totalMessages,
+            record.processedCount,
+            record.successCount,
+            record.failCount,
+            JSON.stringify(record.errorMessages),
+            record.duration,
+            record.syncType,
+            record.syncedAt,
+          ],
         ],
-      ],
-    },
-  })
+      },
+    }),
+  )
 }
 
 export async function getSyncHistory(
@@ -540,10 +651,12 @@ export async function getSyncHistory(
 ): Promise<SyncHistoryRecord[]> {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.syncHistory}!A2:L`,
-  })
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.syncHistory}!A2:L`,
+    }),
+  )
 
   const rows = (data.values ?? [])
     .filter((row) => row[0] && row[1] === session.email)
@@ -584,10 +697,12 @@ export async function enqueuePendingMessage(
   const sheets = getSheetsClient(session)
 
   // Avoid duplicates: check if messageId already exists in queue
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.pendingQueue}!A2:F`,
-  })
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.pendingQueue}!A2:F`,
+    }),
+  )
   const exists = (data.values ?? []).some(
     (row) => String(row[0]) === item.messageId && String(row[4]) !== 'done',
   )
@@ -596,24 +711,26 @@ export async function enqueuePendingMessage(
     return
   }
 
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.pendingQueue}!A:F`,
-    valueInputOption: 'RAW',
-    insertDataOption: 'INSERT_ROWS',
-    requestBody: {
-      values: [
-        [
-          item.messageId,
-          item.userEmail,
-          item.historyId,
-          item.subject,
-          new Date().toISOString(),
-          'pending',
+  await withRetry(() =>
+    sheets.spreadsheets.values.append({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.pendingQueue}!A:F`,
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [
+          [
+            item.messageId,
+            item.userEmail,
+            item.historyId,
+            item.subject,
+            new Date().toISOString(),
+            'pending',
+          ],
         ],
-      ],
-    },
-  })
+      },
+    }),
+  )
   console.log(`[PendingQueue] Enqueued messageId=${item.messageId} for ${item.userEmail}`)
 }
 
@@ -623,10 +740,12 @@ export async function getPendingMessages(
 ): Promise<PendingQueueItem[]> {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.pendingQueue}!A2:F`,
-  })
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.pendingQueue}!A2:F`,
+    }),
+  )
 
   return (data.values ?? [])
     .filter((row) => String(row[1]) === userEmail && String(row[5]) === 'pending')
@@ -656,10 +775,12 @@ export async function markPendingMessagesProcessed(
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
 
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.pendingQueue}!A2:F`,
-  })
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.pendingQueue}!A2:F`,
+    }),
+  )
 
   const rows = data.values ?? []
   const idSet = new Set(messageIds)
@@ -671,12 +792,14 @@ export async function markPendingMessagesProcessed(
   })
 
   if (updatedRows.length > 0) {
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: spreadsheetId(session),
-      range: `${SHEET_NAMES.pendingQueue}!A2:F${updatedRows.length + 1}`,
-      valueInputOption: 'RAW',
-      requestBody: { values: updatedRows },
-    })
+    await withRetry(() =>
+      sheets.spreadsheets.values.update({
+        spreadsheetId: spreadsheetId(session),
+        range: `${SHEET_NAMES.pendingQueue}!A2:F${updatedRows.length + 1}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: updatedRows },
+      }),
+    )
   }
   console.log(`[PendingQueue] Marked ${messageIds.length} messages as done`)
 }
@@ -698,27 +821,29 @@ export interface ErrorLogEntry {
 export async function appendErrorLog(session: SessionData, entry: ErrorLogEntry) {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.errorLog}!A:I`,
-    valueInputOption: 'RAW',
-    insertDataOption: 'INSERT_ROWS',
-    requestBody: {
-      values: [
-        [
-          entry.errorId,
-          entry.timestamp,
-          entry.source,
-          entry.severity,
-          entry.userEmail,
-          entry.message,
-          entry.stackTrace,
-          JSON.stringify(entry.context),
-          String(entry.resolved),
+  await withRetry(() =>
+    sheets.spreadsheets.values.append({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.errorLog}!A:I`,
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [
+          [
+            entry.errorId,
+            entry.timestamp,
+            entry.source,
+            entry.severity,
+            entry.userEmail,
+            entry.message,
+            entry.stackTrace,
+            JSON.stringify(entry.context),
+            String(entry.resolved),
+          ],
         ],
-      ],
-    },
-  })
+      },
+    }),
+  )
 }
 
 export async function getErrorLog(
@@ -727,10 +852,12 @@ export async function getErrorLog(
 ): Promise<ErrorLogEntry[]> {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.errorLog}!A2:I`,
-  })
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.errorLog}!A2:I`,
+    }),
+  )
 
   const rows = (data.values ?? [])
     .filter((row) => row[0])
@@ -762,21 +889,25 @@ export async function markErrorResolved(session: SessionData, errorId: string) {
   await ensureSheetHeaders(session)
   const sheets = getSheetsClient(session)
 
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.errorLog}!A2:I`,
-  })
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.errorLog}!A2:I`,
+    }),
+  )
 
   const rows = data.values ?? []
   const rowIndex = rows.findIndex((row) => String(row[0]) === errorId)
   if (rowIndex < 0) return
 
   const sheetRow = rowIndex + 2
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: spreadsheetId(session),
-    range: `${SHEET_NAMES.errorLog}!I${sheetRow}`,
-    valueInputOption: 'RAW',
-    requestBody: { values: [['true']] },
-  })
+  await withRetry(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: spreadsheetId(session),
+      range: `${SHEET_NAMES.errorLog}!I${sheetRow}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [['true']] },
+    }),
+  )
 }
 

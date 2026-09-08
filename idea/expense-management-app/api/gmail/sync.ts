@@ -8,11 +8,12 @@ import {
 } from '../lib/gmail'
 import { methodNotAllowed, ok, serverError, unauthorized } from '../lib/response'
 import {
-  appendExpense,
+  appendExpensesBatch,
   appendSyncHistory,
   getCategories,
   getExistingMessageIds,
   updateSyncState,
+  type ExpenseRow,
   type SyncErrorItem,
 } from '../lib/sheets'
 import { readSession } from '../lib/session'
@@ -112,6 +113,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         )
       }
 
+      // ── Batch collect & write all valid expenses in 1 API call ────────────
+      const expensesToSave: ExpenseRow[] = []
+
       for (const [key, { message, parsed }] of dedupMap) {
         const allIdsInGroup = dedupGroupIds.get(key) ?? [message.id]
 
@@ -127,33 +131,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           continue
         }
 
+        const expense: ExpenseRow = {
+          id: randomUUID(),
+          purchaseDate: message.receivedDate,
+          name: parsed.name || message.subject,
+          parentCategory: parsed.parentCategory,
+          category: `${parsed.parentCategory} > ${parsed.childCategory}`,
+          amount: parsed.amount,
+          platform: parsed.platform,
+          status: parsed.status,
+          orderId: parsed.orderId,
+          imageUrl: message.imageUrl,
+          gmailMessageId: message.id,
+          createdAt: new Date().toISOString(),
+        }
+        expensesToSave.push(expense)
+
+        console.log(
+          `[Sync] Queued: "${expense.name}" ${parsed.amount} ${parsed.currency}`,
+          allIdsInGroup.length > 1 ? `(covers ${allIdsInGroup.length} emails)` : '',
+        )
+
+        for (const id of allIdsInGroup) existingIds.add(id)
+      }
+
+      // ── Single batch write for all collected rows ─────────────────────────
+      if (expensesToSave.length > 0) {
         try {
-          await appendExpense(session, {
-            id: randomUUID(),
-            purchaseDate: message.receivedDate,
-            name: parsed.name || message.subject,
-            parentCategory: parsed.parentCategory,
-            category: `${parsed.parentCategory} > ${parsed.childCategory}`,
-            amount: parsed.amount,
-            platform: parsed.platform,
-            status: parsed.status,
-            orderId: parsed.orderId,
-            imageUrl: message.imageUrl,
-            gmailMessageId: message.id,
-            createdAt: new Date().toISOString(),
-          })
-
-          console.log(
-            `[Sync] SAVED: "${parsed.name || message.subject}" ${parsed.amount} ${parsed.currency}`,
-            allIdsInGroup.length > 1 ? `(covers ${allIdsInGroup.length} emails)` : '',
-          )
-
-          for (const id of allIdsInGroup) existingIds.add(id)
-          synced++
+          await appendExpensesBatch(session, expensesToSave)
+          synced = expensesToSave.length
+          console.log(`[Sync] Batch saved ${synced} expense(s) in 1 API call`)
         } catch (saveErr) {
           const errMsg = saveErr instanceof Error ? saveErr.message : String(saveErr)
-          console.error(`[Sync] FAILED to save messageId=${message.id}: ${errMsg}`)
-          errors.push({ messageId: message.id, subject: message.subject, error: errMsg })
+          console.error(`[Sync] FAILED batch save: ${errMsg}`)
+          // All rows in the batch failed — report as errors
+          for (const e of expensesToSave) {
+            errors.push({
+              messageId: e.gmailMessageId,
+              subject: e.name,
+              error: errMsg,
+            })
+          }
         }
       }
 
@@ -191,8 +209,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('[Sync] Failed to write SyncHistory:', histErr)
     }
 
-    ok(res, { synced, skipped, failCount: errors.length, lastSyncedAt, duration })
+    ok(res, { synced, skipped, failCount: errors.length, processedCount: newMessages.length, lastSyncedAt, duration })
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error)
+    const isQuotaError =
+      errMsg.includes('Quota exceeded') ||
+      errMsg.includes('RESOURCE_EXHAUSTED') ||
+      (error as { code?: number })?.code === 429
+
+    if (isQuotaError) {
+      console.error('[Sync] Quota exceeded error:', errMsg)
+      return res.status(503).json({
+        data: null,
+        error: {
+          message:
+            'Hệ thống đang bận — Google Sheets đã đạt giới hạn ghi dữ liệu. Vui lòng thử lại sau 1–2 phút.',
+          code: 'QUOTA_EXCEEDED',
+        },
+      })
+    }
     serverError(res, error)
   }
 }

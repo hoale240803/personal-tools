@@ -80,8 +80,10 @@ export function ExpensesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
+  const [syncPhase, setSyncPhase] = useState<'idle' | 'counting' | 'parsing' | 'saving' | 'done'>('idle')
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
+  const [syncIsError, setSyncIsError] = useState(false)
 
   // Sync warning modal state
   const [showSyncWarning, setShowSyncWarning] = useState(false)
@@ -141,7 +143,9 @@ export function ExpensesPage() {
 
   const handleSync = async (scoped = false) => {
     setSyncing(true)
+    setSyncPhase('counting')
     setSyncMessage(null)
+    setSyncIsError(false)
     try {
       const dateRange = scoped
         ? mode === 'day'
@@ -163,27 +167,41 @@ export function ExpensesPage() {
         setOriginalDateRange(dateRange)
         setShowSyncWarning(true)
         setSyncing(false)
+        setSyncPhase('idle')
         return
       }
 
       await executeSync(dateRange)
     } catch (err) {
       setSyncMessage(err instanceof Error ? err.message : 'Lỗi kiểm tra đồng bộ')
+      setSyncIsError(true)
       setSyncing(false)
+      setSyncPhase('idle')
     }
   }
 
   const executeSync = async (dateRange?: SyncDateRange) => {
     setSyncing(true)
+    setSyncPhase('parsing')
     setSyncMessage(null)
+    setSyncIsError(false)
     setShowSyncWarning(false)
     try {
       const result = await syncGmailExecute(dateRange)
+      setSyncPhase('done')
       setLastSyncedAt(result.lastSyncedAt)
-      setSyncMessage(`Đã đồng bộ ${result.synced} email mới, bỏ qua ${result.skipped}.`)
+      const parts = [
+        result.synced > 0 ? `✅ Đã lưu ${result.synced} bản ghi` : null,
+        result.skipped > 0 ? `⏭ Bỏ qua ${result.skipped}` : null,
+        result.failCount > 0 ? `❌ Lỗi ${result.failCount}` : null,
+      ].filter(Boolean).join(' · ')
+      setSyncMessage(parts || 'Không có email mới cần đồng bộ.')
+      setSyncIsError(false)
       await loadExpenses()
     } catch (err) {
+      setSyncPhase('idle')
       setSyncMessage(err instanceof Error ? err.message : 'Đồng bộ thất bại')
+      setSyncIsError(true)
     } finally {
       setSyncing(false)
     }
@@ -258,13 +276,25 @@ export function ExpensesPage() {
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
           >
             <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Đang đồng bộ...' : 'Đồng bộ Gmail'}
+            {syncing
+              ? syncPhase === 'counting'
+                ? 'Đang kiểm tra...'
+                : syncPhase === 'parsing'
+                  ? '🤖 Đang phân tích...'
+                  : 'Đang lưu...'
+              : 'Đồng bộ Gmail'}
           </button>
         </div>
       </div>
 
       {syncMessage && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm ${
+            syncIsError
+              ? 'border-rose-200 bg-rose-50 text-rose-700'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+          }`}
+        >
           {syncMessage}
         </div>
       )}

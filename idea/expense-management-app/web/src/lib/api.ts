@@ -28,6 +28,7 @@ interface SyncExecuteResult {
   synced: number
   skipped: number
   failCount: number
+  processedCount: number
   lastSyncedAt: string
   duration: number
 }
