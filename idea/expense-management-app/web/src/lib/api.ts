@@ -1,8 +1,16 @@
 import type { CategoryParent, ErrorLogEntry, Expense, SyncHistoryRecord, UserProfile } from '../types'
 
+/** Thrown when the backend returns 401 — OAuth token expired/revoked */
+export class SessionExpiredError extends Error {
+  constructor(message = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.') {
+    super(message)
+    this.name = 'SessionExpiredError'
+  }
+}
+
 interface ApiResponse<T> {
   data: T | null
-  error: { message: string } | null
+  error: { message: string; code?: string } | null
 }
 
 interface ExpensesResult {
@@ -41,6 +49,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
 
   const body = (await res.json()) as ApiResponse<T>
+
+  // 401 = session expired (invalid_grant or missing token)
+  if (res.status === 401) {
+    throw new SessionExpiredError(body.error?.message)
+  }
 
   if (!res.ok || body.error) {
     throw new Error(body.error?.message ?? `Request failed (${res.status})`)

@@ -7,7 +7,7 @@ export interface ApiSuccess<T> {
 
 export interface ApiError {
   data: null
-  error: { message: string }
+  error: { message: string; code?: string }
 }
 
 export function json<T>(res: VercelResponse, status: number, data: T) {
@@ -41,5 +41,11 @@ export function methodNotAllowed(res: VercelResponse) {
 export function serverError(res: VercelResponse, error: unknown) {
   const message = error instanceof Error ? error.message : 'Internal server error'
   console.error(error)
+
+  // invalid_grant = OAuth refresh token revoked/expired — treat as auth failure
+  if (message === 'invalid_grant' || message.includes('invalid_grant')) {
+    return fail(res, 401, 'Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất và đăng nhập lại.')
+  }
+
   fail(res, 500, message)
 }

@@ -13,6 +13,8 @@ import {
   createExpense,
   updateExpense,
   deleteExpense,
+  loginWithGoogle,
+  SessionExpiredError,
   type SyncDateRange,
   type ExpenseFormData,
 } from '../lib/api'
@@ -79,6 +81,7 @@ export function ExpensesPage() {
   const [summary, setSummary] = useState({ totalAmount: 0, deliveredCount: 0, pendingCount: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sessionExpired, setSessionExpired] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [syncPhase, setSyncPhase] = useState<'idle' | 'counting' | 'parsing' | 'saving' | 'done'>('idle')
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
@@ -125,6 +128,10 @@ export function ExpensesPage() {
       setTotalPages(result.totalPages)
       setSummary(result.summary)
     } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        setSessionExpired(true)
+        return
+      }
       setError(err instanceof Error ? err.message : 'Không tải được dữ liệu')
     } finally {
       setLoading(false)
@@ -173,6 +180,12 @@ export function ExpensesPage() {
 
       await executeSync(dateRange)
     } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        setSessionExpired(true)
+        setSyncing(false)
+        setSyncPhase('idle')
+        return
+      }
       setSyncMessage(err instanceof Error ? err.message : 'Lỗi kiểm tra đồng bộ')
       setSyncIsError(true)
       setSyncing(false)
@@ -200,6 +213,10 @@ export function ExpensesPage() {
       await loadExpenses()
     } catch (err) {
       setSyncPhase('idle')
+      if (err instanceof SessionExpiredError) {
+        setSessionExpired(true)
+        return
+      }
       setSyncMessage(err instanceof Error ? err.message : 'Đồng bộ thất bại')
       setSyncIsError(true)
     } finally {
@@ -286,6 +303,21 @@ export function ExpensesPage() {
           </button>
         </div>
       </div>
+
+      {sessionExpired && (
+        <div className="flex items-center gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+          <span className="flex-1 text-amber-800">
+            ⚠️ <strong>Phiên đăng nhập đã hết hạn</strong> — Token Google OAuth đã bị thu hồi hoặc hết hạn.
+          </span>
+          <button
+            type="button"
+            onClick={loginWithGoogle}
+            className="shrink-0 rounded-lg bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+          >
+            Đăng nhập lại
+          </button>
+        </div>
+      )}
 
       {syncMessage && (
         <div
