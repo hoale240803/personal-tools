@@ -1,8 +1,8 @@
-﻿# Social Content Manager -- Work Breakdown Structure (WBS)
+# Social Content Manager -- Work Breakdown Structure (WBS)
 
 > **Status:** Approved for implementation
-> **Revision:** 2026-08-29 -- Cross-document consistency revision applied (D1-D6)
-> **Decisions applied:** D1 (Single-user auth), D2 (Credentials outside DB), D3 (Instagram-first Sprint 1, Facebook Sprint 2), D4 (Local storage MVP), D5 (Scheduling Post-MVP), D6 (Explicit Save Draft)
+> **Revision:** 2026-09-08 -- TikTok Holiday Scheduler priority upgrade applied (D7, D8)
+> **Decisions applied:** D1 (Single-user auth), D2 (Credentials outside DB), D3 (TikTok-first Sprint 1, Instagram Sprint 2, Facebook Sprint 3), D4 (Local storage MVP), D5 (Holiday Scheduler MVP P0), D6 (Explicit Save Draft), D7 (TikTok primary platform), D8 (Telegram approval mandatory before TikTok holiday post)
 > **Derived from:** Business_Requirements.md + ARCHITECTURE_PLAN.md
 
 ---
@@ -18,13 +18,29 @@
 
 ---
 
+## Decision Log
+
+| Decision | Description |
+|----------|-------------|
+| **D1** | Single-user MVP. Credentials in settings.json. |
+| **D2** | Credentials outside DB — stored in settings.json. |
+| **D3** | **TikTok is Sprint 1 (Holiday Scheduler). Instagram is Sprint 2. Facebook is Sprint 3.** |
+| **D4** | Local filesystem storage for MVP. |
+| **D5** | **Holiday Scheduler is MVP P0 — NOT Post-MVP.** TikTok holiday posting is the flagship feature. |
+| **D6** | Explicit Save Draft only. No auto-save in MVP. |
+| **D7** | **TikTok is the primary social platform.** TikTokAdapter must be implemented before InstagramAdapter. |
+| **D8** | **Telegram admin approval is mandatory before any holiday post is published to TikTok.** Approval token expires after 12 hours. |
+
+---
+
 ## Dependency Graph Notes
 
-The WBS dependency graph is acyclic:
 - PUBLISH-001a (publishing) has NO dependency on any NOTIFY task.
 - NOTIFY-001/002/003 depend on PUBLISH-001a unidirectionally (Telegram is a downstream consumer and remote-action trigger, not a part of publishing).
 - NOTIFY-004 (result notification) is a fan-out from PUBLISH-001a. PUBLISH-001a does NOT depend on NOTIFY-004.
-- SCHEDULE-001 is Post-MVP and does not appear in MVP dependency chains.
+- **HOLIDAY-003 (HolidaySchedulerWorker) depends on HOLIDAY-001, HOLIDAY-002, HOLIDAY-004, HOLIDAY-005, HOLIDAY-006.**
+- **HOLIDAY-004 (TelegramApprovalService) depends on NOTIFY-002a (TelegramNotificationAdapter).**
+- **HOLIDAY-006 (TikTokAdapter) must be implemented before SOCIAL-001c (InstagramAdapter) — D7.**
 
 ---
 
@@ -211,7 +227,54 @@ The WBS dependency graph is acyclic:
 
 ## EPIC 2 -- Social Account Connections
 
-> **DECISION D3:** Instagram is Sprint 1. Facebook is Sprint 2. Do not implement both in parallel in Sprint 1.
+> **DECISION D3:** TikTok is Sprint 1 (Holiday Scheduler). Instagram is Sprint 2. Facebook is Sprint 3. Do not implement Instagram before TikTokAdapter is done.
+
+---
+
+### FEATURE 2.0 -- TikTok Connection (Sprint 1 — PRIMARY)
+
+##### TASK SOCIAL-000a: Inspect hl-sdk-ts TikTok exports
+
+| Field | Value |
+|-------|-------|
+| **ID** | SOCIAL-000a |
+| **Description** | Clone/install hl-sdk-ts from hoale240803/hl-sdk-ts. Read and document actual exported types, methods, and error classes for TikTok. Do NOT invent API signatures. Append TikTok section to HL_SDK_REFERENCE.md. |
+| **Depends on** | ARCH-001 |
+| **Acceptance Criteria** | (1) HL_SDK_REFERENCE.md has TikTok section. (2) Actual TikTok method names documented. (3) No invented method names used. |
+| **Priority** | P0 |
+| **MVP** | Yes |
+
+---
+
+##### TASK SOCIAL-000b: Implement HlTikTokAdapter
+
+| Field | Value |
+|-------|-------|
+| **ID** | SOCIAL-000b |
+| **Description** | Create HlTikTokAdapter.ts implementing SocialPlatformService for TikTok. Use only methods from HL_SDK_REFERENCE.md TikTok section. Map SDK errors via HlSdkErrorMapper. Support video and image post types for TikTok. |
+| **Depends on** | SOCIAL-001a, SOCIAL-000a, SOCIAL-001d |
+| **Acceptance Criteria** | (1) Only src/integrations/hl-sdk/ imports hl-sdk-ts. (2) All five interface methods implemented. (3) SDK errors mapped. (4) Testable with mock SDK. (5) TikTok vertical format supported. |
+| **Priority** | P0 |
+| **MVP** | Yes |
+
+---
+
+##### TASK SOCIAL-000c: Implement TikTok connect/disconnect API endpoints
+
+| Field | Value |
+|-------|-------|
+| **ID** | SOCIAL-000c |
+| **Description** | Create POST /api/social-accounts/tiktok/connect, DELETE /api/social-accounts/tiktok/:id, POST /api/social-accounts/tiktok/:id/validate. DECISION D2: Write actual OAuth token to settings.json; store only credential reference key in DB. |
+| **Depends on** | SOCIAL-000b, AUTH-001, DB-005 |
+| **Acceptance Criteria** | (1) POST connect triggers TikTok OAuth flow. (2) Raw tokens written to settings.json, never stored in SocialAccount table. (3) Validate endpoint checks connection health. |
+| **Priority** | P0 |
+| **MVP** | Yes |
+
+---
+
+### FEATURE 2.1 -- Instagram Connection (Sprint 2)
+
+> **DECISION D3:** Start Instagram tasks only after TikTok Holiday Scheduler (WF-12/WF-13) is verified working.
 
 ---
 
@@ -234,6 +297,7 @@ The WBS dependency graph is acyclic:
 | **ID** | SOCIAL-001b |
 | **Description** | Clone/install hl-sdk-ts from hoale240803/hl-sdk-ts. Read and document actual exported types, methods, and error classes for Instagram. Do NOT invent API signatures. Create HL_SDK_REFERENCE.md listing discovered exports. |
 | **Depends on** | ARCH-001 |
+| **Sprint** | Sprint 2 |
 | **Acceptance Criteria** | (1) HL_SDK_REFERENCE.md exists. (2) Actual Instagram method names documented. (3) No invented method names used. |
 | **Priority** | P0 |
 | **MVP** | Yes |
@@ -245,8 +309,9 @@ The WBS dependency graph is acyclic:
 | Field | Value |
 |-------|-------|
 | **ID** | SOCIAL-001c |
-| **Description** | Create HlInstagramAdapter.ts implementing SocialPlatformService for Instagram. Use only methods from HL_SDK_REFERENCE.md. Map SDK errors via HlSdkErrorMapper. |
-| **Depends on** | SOCIAL-001a, SOCIAL-001b |
+| **Description** | Create HlInstagramAdapter.ts implementing SocialPlatformService for Instagram. Use only methods from HL_SDK_REFERENCE.md. Map SDK errors via HlSdkErrorMapper. DECISION D7: Implement after TikTokAdapter (SOCIAL-000b). |
+| **Depends on** | SOCIAL-001a, SOCIAL-001b, SOCIAL-000b |
+| **Sprint** | Sprint 2 |
 | **Acceptance Criteria** | (1) Only src/integrations/hl-sdk/ imports hl-sdk-ts. (2) All five interface methods implemented. (3) SDK errors mapped. (4) Testable with mock SDK. |
 | **Priority** | P0 |
 | **MVP** | Yes |
@@ -272,13 +337,14 @@ The WBS dependency graph is acyclic:
 | **ID** | SOCIAL-001e |
 | **Description** | Create GET /api/social-accounts, POST /api/social-accounts/instagram/connect, DELETE /api/social-accounts/:id, POST /api/social-accounts/:id/validate. DECISION D2: Write actual OAuth token to settings.json; store only credential reference key in DB SocialAccount.credentialReference. |
 | **Depends on** | SOCIAL-001c, AUTH-001, DB-005 |
+| **Sprint** | Sprint 2 |
 | **Acceptance Criteria** | (1) GET returns connected accounts with status. (2) POST connect triggers OAuth flow. (3) Raw tokens written to settings.json, never stored in SocialAccount table. |
 | **Priority** | P0 |
 | **MVP** | Yes |
 
 ---
 
-### FEATURE 2.2 -- Facebook Connection (Sprint 2)
+### FEATURE 2.2 -- Facebook Connection (Sprint 3)
 
 > **DECISION D3:** Start Facebook tasks only after Instagram end-to-end (WF-01) is verified working.
 
@@ -832,13 +898,13 @@ The WBS dependency graph is acyclic:
 
 ---
 
-##### TASK SCHEDULE-001: Scheduling domain (Post-MVP P1)
+##### TASK SCHEDULE-001: Scheduling domain (Post-MVP P1 — superseded by EPIC 13)
 
 | Field | Value |
 |-------|-------|
 | **ID** | SCHEDULE-001 |
-| **Description** | DECISION D5: Post-MVP only. Implement PublishSchedule entity, state machine (SCHEDULED->PROCESSING->PUBLISHED/FAILED/CANCELLED), and scheduler worker (node-cron). |
-| **Depends on** | PUBLISH-001a |
+| **Description** | DECISION D5 REVISED: Holiday Scheduler (EPIC 13) implements scheduling for TikTok holiday posts in MVP. This task covers generic recurring scheduling for all platforms (Post-MVP). |
+| **Depends on** | PUBLISH-001a, HOLIDAY-003 |
 | **Priority** | P1 |
 | **MVP** | No |
 
@@ -892,12 +958,135 @@ The WBS dependency graph is acyclic:
 
 ---
 
+## EPIC 13 -- Holiday Auto-Scheduler (TikTok Priority)
+
+> **DECISION D5 / D7 / D8:** Holiday Scheduler is MVP P0 and the flagship feature. TikTok is the primary target platform. Telegram admin approval is mandatory before any holiday post is published.
+
+---
+
+##### TASK HOLIDAY-001: HolidayEvent schema
+
+| Field | Value |
+|-------|-------|
+| **ID** | HOLIDAY-001 |
+| **Description** | Add HolidayEvent Prisma model: id, name, month (1-12), day (1-31), scheduledTime (HH:MM), posterId (FK to HolidayPoster), active (bool), status (PENDING/SCHEDULED/SENT_FOR_APPROVAL/APPROVED/PUBLISHED/SKIPPED/EXPIRED/FAILED), createdAt, updatedAt. Add HolidayPostHistory for audit trail. |
+| **Depends on** | DB-001 |
+| **Acceptance Criteria** | (1) Migration runs. (2) HolidayEvent.status enum covers all states. (3) Supports multiple holidays per year. |
+| **Priority** | P0 |
+| **MVP** | Yes |
+
+---
+
+##### TASK HOLIDAY-002: HolidayPosterLibrary schema and upload endpoint
+
+| Field | Value |
+|-------|-------|
+| **ID** | HOLIDAY-002 |
+| **Description** | Add HolidayPoster Prisma model: id, name, storageKey, uploadedAt. POST /api/holiday/posters (upload poster file). GET /api/holiday/posters (list). DELETE /api/holiday/posters/:id. Poster storage uses existing LocalFilesystemAdapter (MEDIA-001a). PATCH /api/holiday/events/:id to link posterId to a HolidayEvent. |
+| **Depends on** | HOLIDAY-001, MEDIA-001a |
+| **Acceptance Criteria** | (1) Poster upload stores file and creates HolidayPoster record. (2) Holiday event can be linked to a poster. (3) Poster list returns thumbnail URL. |
+| **Priority** | P0 |
+| **MVP** | Yes |
+
+---
+
+##### TASK HOLIDAY-003: HolidaySchedulerWorker (node-cron)
+
+| Field | Value |
+|-------|-------|
+| **ID** | HOLIDAY-003 |
+| **Description** | Implement HolidaySchedulerWorker using node-cron. Runs daily at minute resolution. For each active HolidayEvent: check if today matches month+day and current time matches scheduledTime. If match: (1) Load linked poster, (2) Call PrepareHolidayContentService (AI), (3) Call HolidayTelegramApprovalService, (4) Update HolidayEvent.status = SENT_FOR_APPROVAL. Worker must be idempotent — if already SENT_FOR_APPROVAL today, skip. |
+| **Depends on** | HOLIDAY-001, HOLIDAY-002, HOLIDAY-004, HOLIDAY-005, SOCIAL-000b |
+| **Acceptance Criteria** | (1) Correct holiday triggers on matching date+time. (2) Non-matching dates do not trigger. (3) Already-sent holidays are not re-triggered. (4) Worker is testable with injected clock. |
+| **Priority** | P0 |
+| **MVP** | Yes |
+
+---
+
+##### TASK HOLIDAY-004: HolidayTelegramApprovalService
+
+| Field | Value |
+|-------|-------|
+| **ID** | HOLIDAY-004 |
+| **Description** | Create HolidayTelegramApprovalService.ts. DECISION D8: Send Telegram message with: (1) poster image, (2) generated caption preview, (3) holiday name and scheduled date, (4) inline keyboard: ✅ "Đăng lên TikTok" | ❌ "Bỏ qua". Generate HolidayApprovalToken (HOLIDAY-005) and embed token ID in callback_data. Store NotificationDelivery record. |
+| **Depends on** | NOTIFY-002a, NOTIFY-002b, HOLIDAY-001 |
+| **Acceptance Criteria** | (1) Sends Telegram message with poster image. (2) Caption and holiday name visible. (3) Both inline buttons present. (4) Callback data encodes token ID. (5) TELEGRAM_BOT_TOKEN never hardcoded. |
+| **Priority** | P0 |
+| **MVP** | Yes |
+
+---
+
+##### TASK HOLIDAY-005: HolidayApprovalToken service
+
+| Field | Value |
+|-------|-------|
+| **ID** | HOLIDAY-005 |
+| **Description** | Create HolidayApprovalTokenService.ts. Schema: id, holidayEventId, expiresAt (now + 12h), consumedAt (nullable), action (APPROVE/REJECT). On Telegram callback: (1) Load token, (2) Validate not expired, (3) Validate not consumed, (4) Mark consumed, (5) If APPROVE → call PublishHolidayPostService (TikTok). If REJECT → log SKIPPED. On expiry (checked by cron after 12h): mark EXPIRED, send Telegram "Bài [holiday] đã hết hạn duyệt." |
+| **Depends on** | HOLIDAY-001, DB-006 |
+| **Acceptance Criteria** | (1) Expired token → no publish, Telegram notification sent. (2) Consumed token → error, no duplicate publish. (3) APPROVE → triggers TikTok publish. (4) REJECT → logs SKIPPED, no publish. |
+| **Priority** | P0 |
+| **MVP** | Yes |
+
+---
+
+##### TASK HOLIDAY-006: PublishHolidayPostService (TikTok)
+
+| Field | Value |
+|-------|-------|
+| **ID** | HOLIDAY-006 |
+| **Description** | Create PublishHolidayPostService.ts. Orchestrates: (1) Load HolidayEvent + poster + generated caption, (2) Call HlTikTokAdapter.publish(), (3) Persist result, (4) Update HolidayEvent.status = PUBLISHED or FAILED, (5) Send Telegram result notification: ✅ "Đã đăng thành công [link]" | ❌ "Thất bại: [lý do]". This service is called ONLY by HolidayApprovalTokenService — never called directly by user UI. |
+| **Depends on** | SOCIAL-000b, HOLIDAY-005, NOTIFY-002a |
+| **Acceptance Criteria** | (1) TikTok publish called with correct poster + caption. (2) Result persisted in HolidayPostHistory. (3) Telegram result notification sent. (4) Failure does not crash worker — logs error and notifies Telegram. |
+| **Priority** | P0 |
+| **MVP** | Yes |
+
+---
+
+##### TASK HOLIDAY-007: PrepareHolidayContentService (AI caption for holiday)
+
+| Field | Value |
+|-------|-------|
+| **ID** | HOLIDAY-007 |
+| **Description** | Create PrepareHolidayContentService.ts. Calls AIContentService with holiday-specific input: holiday name, date, poster image reference, brand StyleProfile, target platform = TIKTOK. Returns caption + hashtags optimised for TikTok vertical format. Example output for Christmas: festive tone, H&H Nails branding, holiday hours, relevant hashtags (#ChristmasNails, #HHNails, #MerryChristmas). |
+| **Depends on** | AI-001a, AI-001b, AI-001c, HOLIDAY-001 |
+| **Acceptance Criteria** | (1) Caption includes holiday context. (2) Caption follows brand StyleProfile. (3) Hashtags appropriate for TikTok + holiday. (4) AI failure does not trigger Telegram preview — HolidaySchedulerWorker retries or logs FAILED. |
+| **Priority** | P0 |
+| **MVP** | Yes |
+
+---
+
+##### TASK HOLIDAY-008: Holiday Calendar Manager UI
+
+| Field | Value |
+|-------|-------|
+| **ID** | HOLIDAY-008 |
+| **Description** | Build apps/web/src/app/holiday/page.tsx. Sections: (1) Upcoming schedule table (name, date, time, poster thumbnail, status, active toggle), (2) Add/edit holiday event form, (3) Poster upload per holiday, (4) "Send Test Preview to Telegram" button (triggers immediate Telegram preview without waiting for scheduled time). Layout: calendar-style view of the year with holiday markers. |
+| **Depends on** | HOLIDAY-001, HOLIDAY-002, HOLIDAY-004 |
+| **Acceptance Criteria** | (1) All configured holidays visible. (2) Active toggle enables/disables scheduler for that holiday. (3) Poster upload works. (4) Test preview sends Telegram message. (5) History tab shows past holiday post results. |
+| **Priority** | P1 |
+| **MVP** | Yes |
+
+---
+
+##### TASK HOLIDAY-009: Unit and integration tests for Holiday Scheduler
+
+| Field | Value |
+|-------|-------|
+| **ID** | HOLIDAY-009 |
+| **Description** | (1) Unit test HolidaySchedulerWorker with injected clock — correct date triggers, wrong date does not. (2) Unit test HolidayApprovalTokenService — expired/consumed/valid cases. (3) Integration test: trigger → Telegram preview → Approve callback → TikTok publish (adapters mocked). |
+| **Depends on** | HOLIDAY-003, HOLIDAY-005, HOLIDAY-006 |
+| **Acceptance Criteria** | (1) All approval token states tested. (2) Scheduler idempotency tested. (3) TikTok publish called exactly once per approval. |
+| **Priority** | P0 |
+| **MVP** | Yes |
+
+---
+
 ## WBS Summary
 
 | Epic | MVP Tasks | Post-MVP Tasks |
 |------|-----------|----------------|
 | EPIC 1 -- Foundation | ARCH-001--005, DB-001--006, AUTH-001--003 | AUTH-MULTI-001 (P2) |
-| EPIC 2 -- Social Connections | SOCIAL-001a--e (Sprint 1), SOCIAL-002a--b (Sprint 2) | LinkedIn+ |
+| EPIC 2 -- Social Connections | **SOCIAL-000a--c (TikTok, Sprint 1)**, SOCIAL-001a--e (Instagram Sprint 2), SOCIAL-002a--b (Facebook Sprint 3) | LinkedIn+ |
 | EPIC 3 -- Media Upload | MEDIA-001a--c | STORAGE-CLOUD-001 (P1) |
 | EPIC 4 -- Post Domain | POST-001a--b | -- |
 | EPIC 5 -- AI Content | AI-001a--e, AI-002a | OpenAI/Claude adapters |
@@ -907,28 +1096,34 @@ The WBS dependency graph is acyclic:
 | EPIC 9 -- Draft/History | DRAFT-001, HIST-001--002 | AUTOSAVE-001 (P2) |
 | EPIC 10 -- Frontend | UI-000, UI-001--006, UI-004b | -- |
 | EPIC 11 -- Testing | TEST-001--005 | More E2E coverage |
-| EPIC 12 -- Post-MVP | -- | SCHEDULE-001, AUTOSAVE-001, AUTH-MULTI-001, STORAGE-CLOUD-001, NOTIFY-005 |
+| **EPIC 13 -- Holiday Scheduler** | **HOLIDAY-001--009 (TikTok P0)** | Generic multi-platform scheduler |
+| EPIC 12 -- Post-MVP | -- | SCHEDULE-001 (generic), AUTOSAVE-001, AUTH-MULTI-001, STORAGE-CLOUD-001, NOTIFY-005 |
 
 ---
 
 ## Implementation Order (Sprint Sequence)
 
-### Sprint 1 -- Instagram Vertical Slice
-**Goal:** WF-01 works end-to-end. Login -> Create -> AI -> Review -> Publish to Instagram.
+### Sprint 1 -- TikTok Holiday Scheduler *(flagship)*
+**Goal:** WF-12 and WF-13 work end-to-end. TikTok holiday post triggered → Telegram preview → Admin approves → TikTok published.
 
-Tasks in order: ARCH-001, ARCH-002, ARCH-003, ARCH-004, ARCH-005, DB-001, DB-002, DB-003, DB-004, DB-005, AUTH-001, AUTH-002, AUTH-003, SOCIAL-001a, SOCIAL-001b, SOCIAL-001c, SOCIAL-001d, SOCIAL-001e, MEDIA-001a, MEDIA-001b, MEDIA-001c, POST-001a, POST-001b, AI-001a, AI-001b, AI-001c, AI-001d, AI-001e, AI-002a, REVIEW-001, PUBLISH-001a, PUBLISH-001b, PUBLISH-001c, UI-000, UI-001, UI-002, UI-003, UI-004, TEST-001, TEST-002, TEST-003, TEST-005
+Tasks in order: ARCH-001, ARCH-002, ARCH-003, ARCH-004, ARCH-005, DB-001, DB-002, DB-003, DB-004, DB-005, DB-006, AUTH-001, AUTH-002, AUTH-003, SOCIAL-001a, SOCIAL-001d, **SOCIAL-000a, SOCIAL-000b, SOCIAL-000c**, MEDIA-001a, NOTIFY-002a, NOTIFY-002b, **HOLIDAY-001, HOLIDAY-002, HOLIDAY-007, HOLIDAY-004, HOLIDAY-005, HOLIDAY-006, HOLIDAY-003, HOLIDAY-008, HOLIDAY-009**
 
-### Sprint 2 -- Facebook + Multi-Platform
-**Goal:** WF-06 and WF-07 work. Publish to both platforms. Handle partial failures.
+### Sprint 2 -- Manual Post + Instagram Vertical Slice
+**Goal:** WF-01 works end-to-end for manual posts. Login -> Create -> AI -> Review -> Publish to TikTok and Instagram.
+
+Tasks: SOCIAL-001b, SOCIAL-001c, SOCIAL-001e, MEDIA-001b, MEDIA-001c, POST-001a, POST-001b, AI-001a, AI-001b, AI-001c, AI-001d, AI-001e, AI-002a, REVIEW-001, PUBLISH-001a, PUBLISH-001b, PUBLISH-001c, UI-000, UI-001, UI-002, UI-003, UI-004, TEST-001, TEST-002, TEST-003, TEST-005
+
+### Sprint 3 -- Facebook + Multi-Platform
+**Goal:** WF-06 and WF-07 work. Publish to all three platforms. Handle partial failures.
 
 Tasks: SOCIAL-002a, SOCIAL-002b, PUBLISH-002, REVIEW-002, UI-004b
 
-### Sprint 3 -- Telegram + Draft/History
-**Goal:** Telegram POST and VIEW DETAIL work. Explicit Save Draft and History work.
+### Sprint 4 -- Telegram Full + Draft/History
+**Goal:** Full Telegram notification system. Explicit Save Draft and History work.
 
-Tasks: DB-006, NOTIFY-001, NOTIFY-002a, NOTIFY-002b, NOTIFY-003, NOTIFY-004, DRAFT-001, HIST-001, HIST-002, TEST-004, UI-005, UI-006
+Tasks: NOTIFY-001, NOTIFY-003, NOTIFY-004, DRAFT-001, HIST-001, HIST-002, TEST-004, UI-005, UI-006
 
-### Sprint 4 -- Hardening
+### Sprint 5 -- Hardening
 **Goal:** All error states handled. Tests complete. Security reviewed.
 
 Tasks: Security review, additional tests, error UX polish

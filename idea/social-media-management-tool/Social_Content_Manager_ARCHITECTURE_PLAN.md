@@ -5,10 +5,13 @@
 This document defines the technical architecture for the Social Content Manager MVP.
 
 Phase 1 is a personal-use application focused on:
+- **TikTok** *(primary platform — Holiday Auto-Scheduler)*
 - Instagram
 - Facebook
+- holiday event calendar + poster library
+- AI caption generation (holiday-context aware)
+- Telegram admin approval workflow (mandatory before TikTok holiday post)
 - original image upload
-- AI caption generation
 - AI hashtags
 - CTA
 - location suggestion
@@ -21,13 +24,12 @@ Phase 1 is a personal-use application focused on:
 The architecture must later support:
 - multiple users
 - multiple brands/workspaces
-- TikTok
 - Google Business Profile
-- scheduling
-- analytics
+- advanced analytics
 - team roles
+- generic multi-platform scheduling
 
-**Core principle: AI prepares content. The user approves it. Social adapters publish it.**
+**Core principle: AI prepares content. The admin approves it via Telegram. Social adapters publish it — TikTok first.**
 
 ---
 
@@ -51,11 +53,11 @@ Application
     ↓
 SocialPlatformService
     ↓
-InstagramAdapter / FacebookAdapter
+TikTokAdapter / InstagramAdapter / FacebookAdapter
     ↓
 hl-sdk-ts
     ↓
-Meta APIs
+TikTok API / Meta APIs
 ```
 
 ---
@@ -67,27 +69,6 @@ Use a **modular monolith** for the MVP.
 Do not start with microservices. The first release has one primary user, modest content volume and simple workflows. Explicit module boundaries still allow later extraction.
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│                        Web Application                       │
-│  Create Post │ Review │ History │ Settings │ Calendar       │
-└──────────────────────────────┬───────────────────────────────┘
-                               ↓
-┌──────────────────────────────────────────────────────────────┐
-│                         Application API                      │
-│  PostController │ SocialAccountController │ AIController    │
-└──────────────────────────────┬───────────────────────────────┘
-                               ↓
-┌──────────────────────────────────────────────────────────────┐
-│                       Application Layer                      │
-│ CreatePost │ PrepareContent │ Review │ Publish │ Draft/History│
-└───────────────┬──────────────────────┬───────────────────────┘
-                ↓                      ↓
-┌─────────────────────────┐   ┌────────────────────────────────┐
-│      AI Boundary        │   │       Social Boundary          │
-│ AIContentService        │   │ SocialPlatformService          │
-│ StyleService            │   │ InstagramAdapter               │
-│ PromptBuilder           │   │ FacebookAdapter                 │
-└─────────────────────────┘   └───────────────┬────────────────┘
                                                ↓
                                       ┌─────────────────┐
                                       │   hl-sdk-ts     │
