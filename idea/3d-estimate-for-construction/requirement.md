@@ -1,0 +1,1 @@
+Tôi nhận thấy vấn đề ước lượng vật liệu khi đi mua thì khá khó khăn và rất khó để ước tính bằng mắt. Giờ tôi muốn tạo nên phần mềm để đọc bản vẽ, hình ảnh thực tế, từ đó có thể ước tính chính xác tới từng mm2/ inches giúp tiết kiệm thời gian ước tính và cảm tính của constractor.

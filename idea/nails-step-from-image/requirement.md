@@ -1,0 +1,1 @@
+Giả sử tôi có một hình nails inspo trên mạng rất đẹp. Tôi là một nail technician. Tôi cần phải làm như thế nào? dùng những công cụ và nguyên liệu gì để làm bộ nail đó. Output là một video hoặc một dạng tài liệu step by step.
