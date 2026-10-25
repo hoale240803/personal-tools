@@ -1,3 +1,22 @@
+Tool sẽ có một list cần mua.
+- Tên Sẩn phầm
+- Nguồn (website url, google maps)
+- Giá hiện tại
+- Giá mua gần nhất
+- 
+
+2. Tính năng đi chợ.
+
+- lên thực đơn các món ăn cần nấu cho một tuần. Mỗi ngày ăn ba bữa. Mỗi bữa có ít nhất 3 món. Mâm cơm vừa đủ x người ăn tùy theo gia đình.
+- Gia vị.
+
+- Sau đó nó sẽ tự đi lên danh sách các nguyên liệu cần phải mua. Ở đó kèm theo link để mua.
+Có thể là costco, kroger, meijer, target, chợ wee, ....
+
+Tool sẽ cân đó đong đếm xem với cái list cần mua như vậy thì lọc ra 3 nơi cần mua với mức giá rẻ nhất. 
+
+
+
 
 
    Bạn là một chuyên gia lập trình Chrome Extension giàu kinh nghiệm. Hãy giúp tôi xây dựng cấu trúc mã nguồn cho một Chrome Extension (Manifest V3) đóng vai trò làm "Bot cào dữ liệu ngầm" (Web Scraper) để cập nhật giá sản phẩm từ Amazon và Temu, sau đó gửi dữ liệu về một hệ thống Admin Web cá nhân (hoặc Google Apps Script API).

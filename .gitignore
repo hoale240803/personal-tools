@@ -32,3 +32,8 @@ out/
 .venv/
 venv/
 env/
+
+# Facebook profile data
+fb_profile/
+posts.json
+content.json
