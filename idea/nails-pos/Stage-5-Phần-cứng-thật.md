@@ -1,0 +1,2 @@
+Giai đoạn 5: Phần cứng thật (Real Hardware)
+Chỉ làm khi có máy. Viết driver cho máy PAX cắm vào cổng thanh toán đã có. Nếu máy bị khóa khóa mã hóa của nhà cung cấp cũ thì phải qua processor mới, nên hỏi sớm.

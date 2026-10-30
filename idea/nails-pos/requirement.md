@@ -10,3 +10,8 @@
 - Nhập menu service
     -
 - 
+
+
+
+Q&A:
+1.  với mức hoa hồng thấp 1 ~ 2% tiền cà thẻ => 
