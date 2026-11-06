@@ -1,0 +1,216 @@
+# Runtime policy for a multi-project AI company.
+# Agents are persistent identities with project-scoped workspaces, not always-on LLM loops.
+schema_version: "1.0"
+
+organization:
+  name: "AI Company"
+  owner_role: "product_owner"
+  operating_model: "event_driven_shared_workforce"
+  principles:
+    - "A blocked task must not occupy a worker slot."
+    - "Only hard dependencies block downstream tasks."
+    - "Agents may work in parallel on isolated tasks and branches."
+    - "No agent may invent work just to appear busy."
+    - "A task is complete only when its acceptance criteria and evidence are recorded."
+    - "Human owner can query or interrupt any project at any time."
+
+agent_lifecycle:
+  states:
+    - "IDLE"
+    - "READY"
+    - "RUNNING"
+    - "WAITING"
+    - "BLOCKED"
+    - "REVIEW"
+    - "DONE"
+    - "PAUSED"
+    - "FAILED"
+  rules:
+    - "WAITING and BLOCKED release the execution slot."
+    - "Resume a task on a dependency event, timer event, new input or human command."
+    - "Persist a checkpoint before yielding or ending a session."
+    - "Do not keep a model session alive while waiting."
+    - "Use heartbeat only to detect stale RUNNING leases, not to generate pointless work."
+
+task_system:
+  storage:
+    entities:
+      - "projects"
+      - "agents"
+      - "tasks"
+      - "task_dependencies"
+      - "assignments"
+      - "agent_sessions"
+      - "task_events"
+      - "decisions"
+      - "artifacts"
+      - "provider_usage"
+    event_log_append_only: true
+  task_contract:
+    required_fields:
+      - "task_id"
+      - "project_id"
+      - "title"
+      - "description"
+      - "owner_role"
+      - "status"
+      - "priority"
+      - "acceptance_criteria"
+      - "input_refs"
+      - "output_refs"
+      - "dependencies"
+      - "blocked_reason"
+      - "next_action"
+      - "created_at"
+      - "updated_at"
+    optional_fields:
+      - "due_at"
+      - "estimated_effort"
+      - "risk_level"
+      - "human_approval_required"
+      - "worktree_or_workspace"
+      - "lease_expires_at"
+
+  dependency_policy:
+    dependency_types:
+      hard:
+        meaning: "Cannot start until prerequisite output exists."
+        action: "Set task WAITING; release worker slot."
+      soft:
+        meaning: "Can proceed with an explicit assumption or parallel investigation."
+        action: "Continue and record assumption."
+      informational:
+        meaning: "Useful context, not a blocker."
+        action: "Continue."
+    decomposition:
+      - "Split work into independently testable slices."
+      - "Prefer parallel tasks with separate files, modules or research questions."
+      - "Create integration task only after parallel outputs are ready."
+      - "Never allow two developers to edit the same files concurrently without an explicit merge plan."
+
+  scheduler:
+    triggers:
+      - "new_task"
+      - "dependency_completed"
+      - "agent_released_slot"
+      - "new_user_message"
+      - "scheduled_maintenance_window"
+      - "human_approval_received"
+      - "stale_lease_detected"
+    dispatch_policy:
+      - "Choose READY tasks whose hard dependencies are satisfied."
+      - "Match task capability to role capability and project permissions."
+      - "Prefer same-project context and an isolated workspace."
+      - "Use work stealing when an agent queue is empty."
+      - "Respect project priority, deadlines, concurrency and budget caps."
+      - "Do not dispatch a role disabled in that project's profile."
+    concurrency:
+      max_active_agents_per_project: 4
+      max_active_agents_global: 8
+      max_tasks_per_agent: 1
+      lease_minutes: 20
+      stale_lease_action: "checkpoint_then_requeue"
+
+  no_block_rules:
+    - "When BA is waiting for a stakeholder answer, Developer may work on approved technical spikes or unrelated READY tasks."
+    - "When Developer is implementing, Test Engineer may prepare test plans and fixtures from approved acceptance criteria."
+    - "When QA finds a defect, QA creates a defect task; Developer fixes it while QA continues testing other completed slices."
+    - "When a task is blocked by an external decision, mark the exact question and continue other eligible tasks."
+    - "Orchestrator tracks dependencies; it must not become a single serial bottleneck."
+    - "Do not bypass a hard dependency just to keep an agent busy."
+
+  work_sources:
+    approved_backlog:
+      - "Project roadmap items approved by Product Owner"
+      - "Open bugs and technical debt"
+      - "Test coverage gaps"
+      - "Documentation gaps tied to shipped behavior"
+      - "Security and dependency maintenance"
+      - "Performance investigations with measurable hypotheses"
+      - "Operational runbooks and observability improvements"
+    proactive_work:
+      enabled: true
+      requires_project_owner_policy: true
+      allowed_without_approval:
+        - "Read-only investigation"
+        - "Draft documentation"
+        - "Test proposal"
+        - "Dependency and security scan"
+      requires_approval:
+        - "Changing product scope"
+        - "Adding paid infrastructure"
+        - "Production changes"
+        - "External communication"
+        - "Destructive operations"
+
+  project_isolation:
+    separate_context_per_project: true
+    separate_workspace_per_task: true
+    separate_secrets_and_permissions: true
+    cross_project_access: "deny_by_default"
+    shared_agent_identity_allowed: true
+    shared_conversation_context_allowed: false
+
+  reporting:
+    source_of_truth: "task_database_and_event_log"
+    status_fields:
+      - "current_task"
+      - "current_step"
+      - "last_checkpoint"
+      - "completed_since_last_report"
+      - "blocked_reason"
+      - "next_action"
+      - "estimated_remaining_effort"
+      - "last_activity_at"
+    commands:
+      - "status project <project_id>"
+      - "status agent <agent_id>"
+      - "what is agent <agent_id> doing"
+      - "why is task <task_id> blocked"
+      - "show workload"
+      - "pause agent <agent_id>"
+      - "reassign task <task_id> to <agent_id>"
+      - "prioritize project <project_id>"
+
+human_owner:
+  interaction_mode: "direct_access_without_manager_gate"
+  can:
+    - "Ask any project manager for project status."
+    - "Ask any agent for its current task and next action."
+    - "Create, reprioritize, pause or cancel tasks."
+    - "Approve or reject gated decisions."
+    - "Inspect evidence, logs, artifacts and provider usage."
+  approval_required_for:
+    - "Production deployment"
+    - "External commitments or customer messages"
+    - "Paid spend above configured threshold"
+    - "Destructive data or infrastructure changes"
+    - "Material scope or architecture decisions"
+
+cost_controls:
+  per_project_budget_required: true
+  per_task_budget_required: true
+  stop_or_fallback_when_quota_exhausted: true
+  do_not_run_idle_model_loops: true
+  usage_dimensions: ["project", "task", "agent", "provider", "model", "date"]
+  when_no_eligible_provider: "release_worker_slot_and_mark_waiting_for_budget"
+
+observability:
+  audit_events:
+    - "task_created"
+    - "task_assigned"
+    - "task_started"
+    - "task_checkpointed"
+    - "task_blocked"
+    - "task_unblocked"
+    - "task_completed"
+    - "provider_fallback"
+    - "permission_denied"
+    - "human_approval_requested"
+    - "human_approval_received"
+  alerts:
+    - "agent_lease_stale"
+    - "task_blocked_too_long"
+    - "project_budget_near_limit"
+    - "repeated_provider_failures"
+    - "task_without_acceptance_criteria"

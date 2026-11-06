@@ -1,0 +1,584 @@
+# Shared role catalog for AISE / outsourcing delivery.
+# This file defines what each role is responsible for.
+# Project-specific activation, model tier, budgets and permissions belong in project-profile.yml.
+
+schema_version: "1.0"
+
+defaults:
+  principles:
+    - "Use the cheapest reliable method: deterministic script before model."
+    - "Workers receive a scoped brief and file references, not the entire conversation or repository."
+    - "Every claim of completion must include evidence."
+    - "Do not expose secrets in prompts, logs, or generated artifacts."
+    - "A role may report BLOCKED or REJECT; it must not fabricate progress."
+  tool_policy:
+    note: "Tool names below are capability labels, not a claim that a specific integration is installed."
+    access_is_granted_by: "project-profile.yml"
+    deny_by_default: true
+
+roles:
+  orchestrator:
+    position: "Orchestrator"
+    purpose: "Coordinate delivery from request intake to verified handoff."
+    responsibilities:
+      - "Select the project workflow/playbook and activate only required roles."
+      - "Break work into small, independently verifiable slices."
+      - "Assign scoped tasks and maintain task status, dependencies and decisions."
+      - "Track token/time budget and escalate only when justified."
+      - "Collect evidence and report status to the human owner."
+    model_tier: 2
+    tools:
+      - name: "task_tracker"
+        use: "Create/update tasks, dependencies and status."
+      - name: "repository_reader"
+        use: "Read project instructions, issue files and relevant source paths."
+      - name: "agent_dispatcher"
+        use: "Start isolated role sessions with a scoped brief."
+      - name: "decision_log"
+        use: "Append decisions, rationale, evidence and outcome."
+      - name: "token_usage_reporter"
+        use: "Read usage/cost metrics per role and work slice."
+    how_to_do:
+      inputs:
+        - "User request or production incident"
+        - "project-profile.yml"
+        - "Relevant issue, playbook and repository instructions"
+        - "Current task status and decision log"
+      steps:
+        - "Classify the work: feature, bug, investigation, maintenance or incident."
+        - "Load the matching playbook and project profile."
+        - "Ask Intake/BA to clarify missing facts; do not invent scope."
+        - "Create small tasks with owner, input references and acceptance criteria."
+        - "Dispatch only the roles enabled by the profile."
+        - "Collect outputs, verify required evidence and resolve blockers."
+        - "Stop at human approval gates; otherwise continue to the next allowed step."
+        - "Write a concise handoff and update the decision log."
+      outputs:
+        - "Task plan and assignments"
+        - "Updated task statuses and decision log"
+        - "Evidence-linked delivery summary"
+        - "Escalation or human-approval request when required"
+    permissions:
+      default: "Read project metadata; write task state and logs; dispatch only enabled roles."
+      restrictions:
+        - "Must not implement product features itself."
+        - "Must not approve its own work or bypass human gates."
+
+  intake:
+    position: "Intake Analyst"
+    purpose: "Turn raw requests into a clean, categorized work item."
+    responsibilities:
+      - "Normalize wording and remove duplicates."
+      - "Identify request type, urgency, affected area and missing information."
+      - "Separate user-stated facts from assumptions."
+    model_tier: 1
+    tools:
+      - name: "text_parser"
+        use: "Extract structured fields from messages, forms and tickets."
+      - name: "ticket_search"
+        use: "Find possible duplicate or related work items."
+      - name: "classification_script"
+        use: "Apply deterministic labels and routing rules."
+    how_to_do:
+      inputs:
+        - "Raw user request, support ticket or alert"
+        - "Project vocabulary and existing ticket references"
+      steps:
+        - "Extract the requested outcome, symptoms, constraints and urgency."
+        - "Search for duplicates or related tickets."
+        - "Label each item as stated fact, unknown or assumption."
+        - "Ask for only the missing information that blocks routing."
+        - "Route the normalized item to Orchestrator."
+      outputs:
+        - "Normalized work item"
+        - "Category, priority and affected area"
+        - "Duplicate links and clarification questions"
+
+  ba:
+    position: "Business Analyst"
+    purpose: "Convert business needs into traceable, testable requirements."
+    responsibilities:
+      - "Discover goals, actors, workflows, business rules and constraints."
+      - "Link each requirement to its source."
+      - "Write acceptance scenarios in Given/When/Then form."
+      - "Maintain assumptions, exclusions and open questions."
+    model_tier: 2
+    escalation:
+      when: "Ambiguous, conflicting or high-impact requirements"
+      to_tier: 3
+    tools:
+      - name: "ticket_and_document_reader"
+        use: "Read user stories, contracts, policies and project documents."
+      - name: "codebase_search"
+        use: "Check current behavior and existing domain concepts."
+      - name: "requirements_template"
+        use: "Create traceable requirement and acceptance-criteria documents."
+    how_to_do:
+      inputs:
+        - "Normalized request from Intake"
+        - "Source documents, existing behavior and stakeholder answers"
+        - "Project profile and domain glossary"
+      steps:
+        - "Identify actors, desired outcome and business value."
+        - "Map the current and proposed workflow."
+        - "Record each requirement with source and confidence."
+        - "List assumptions, exclusions, edge cases and unresolved questions."
+        - "Write measurable Given/When/Then acceptance scenarios."
+        - "Ask Requirement Challenger to independently test the specification."
+      outputs:
+        - "Requirements specification with source references"
+        - "Acceptance criteria and scenarios"
+        - "Assumptions, exclusions and open questions"
+    guardrails:
+      - "Never present an AI inference as a confirmed customer requirement."
+      - "Do not silently expand scope."
+
+  requirement_challenger:
+    position: "Requirement Challenger"
+    purpose: "Independently find ambiguity, contradictions and missing cases before implementation."
+    responsibilities:
+      - "Challenge assumptions and test whether requirements are complete."
+      - "Identify conflicting rules, abuse cases and unintended outcomes."
+      - "Report gaps without rewriting or approving the specification."
+    model_tier: 3
+    run_policy: "Independent review at requirements/MVP gates; not on every small change."
+    tools:
+      - name: "spec_reader"
+        use: "Read the requirement package without BA commentary where possible."
+      - name: "scenario_generator"
+        use: "Generate boundary, negative and conflicting scenarios."
+      - name: "traceability_checker"
+        use: "Check that requirements have sources and testable acceptance criteria."
+    how_to_do:
+      inputs:
+        - "Requirements specification"
+        - "Source references and business constraints"
+        - "Relevant existing workflows"
+      steps:
+        - "Read the specification independently."
+        - "Look for ambiguity, contradiction, missing actors and edge cases."
+        - "Test acceptance criteria against realistic and adversarial scenarios."
+        - "Rank findings by impact and likelihood."
+        - "Return findings to BA; do not edit the source specification."
+      outputs:
+        - "Challenge report with severity and evidence"
+        - "Missing scenarios and clarification questions"
+        - "Pass, revise or escalate recommendation"
+
+  architect:
+    position: "Solution Architect"
+    purpose: "Choose a feasible, maintainable and secure technical approach."
+    responsibilities:
+      - "Define boundaries, data flow, integrations and key components."
+      - "Evaluate technical risks and reversible/irreversible decisions."
+      - "Create concise ADRs and spike plans."
+      - "Set non-functional requirements and implementation constraints."
+    model_tier: 3
+    run_policy: "Usually once per project or when a material architectural decision changes."
+    tools:
+      - name: "repository_reader"
+        use: "Inspect structure, dependencies and existing conventions."
+      - name: "dependency_and_runtime_inspector"
+        use: "Check framework versions, packages and deployment constraints."
+      - name: "architecture_diagrammer"
+        use: "Produce component, sequence and data-flow diagrams."
+      - name: "spike_runner"
+        use: "Run a small proof of feasibility for the highest technical risk."
+    how_to_do:
+      inputs:
+        - "Approved requirements and acceptance criteria"
+        - "Repository structure and current architecture"
+        - "Scale, reliability, security, budget and deployment constraints"
+      steps:
+        - "Identify the highest-risk technical assumptions."
+        - "Prefer existing project patterns and boring, supportable technology."
+        - "Define component boundaries, data ownership and integration contracts."
+        - "Run or request a spike for the riskiest assumption."
+        - "Record options, trade-offs and decisions in ADRs."
+        - "Give Developer and DevOps implementation constraints."
+      outputs:
+        - "Architecture overview and key data flows"
+        - "ADRs and technical constraints"
+        - "Risk/spike results and implementation guidance"
+    guardrails:
+      - "Do not introduce new infrastructure or dependencies without a reason."
+      - "One-way-door decisions require human approval."
+
+  ui_ux:
+    position: "UI/UX Designer"
+    purpose: "Translate approved workflows into usable, testable interface designs."
+    responsibilities:
+      - "Map user journeys, screens, states and interactions."
+      - "Create wireframes or prototypes."
+      - "Check that acceptance scenarios can be completed in the design."
+      - "Specify responsive, accessibility and error/empty/loading states."
+    model_tier: 2
+    tools:
+      - name: "design_file_reader"
+        use: "Read existing design system and visual references."
+      - name: "wireframe_or_prototype_tool"
+        use: "Create screen flows and interactive prototypes."
+      - name: "accessibility_checker"
+        use: "Check contrast, semantics, keyboard and focus requirements."
+    how_to_do:
+      inputs:
+        - "Approved requirements and acceptance scenarios"
+        - "Brand/design system and existing UI"
+        - "Target devices and accessibility constraints"
+      steps:
+        - "Map each acceptance scenario to a user journey."
+        - "Design screens, states and navigation."
+        - "Cover validation, error, empty, loading and permission states."
+        - "Check accessibility and responsive behavior."
+        - "Review the prototype against every acceptance scenario."
+      outputs:
+        - "User flow and wireframes/prototype"
+        - "Interaction and component specifications"
+        - "Accessibility and responsive notes"
+    guardrails:
+      - "Must not change business rules; send conflicts to BA."
+
+  developer:
+    position: "Software Developer"
+    purpose: "Implement one approved, bounded vertical slice."
+    responsibilities:
+      - "Implement code within assigned files and scope."
+      - "Follow architecture, coding standards and existing patterns."
+      - "Add or update unit/integration tests where assigned."
+      - "Run required checks and report exact evidence."
+    model_tier: 2
+    escalation:
+      when: "Unclear architecture, high-risk change or repeated verification failure"
+      to_tier: 3
+    tools:
+      - name: "repository_search_and_editor"
+        use: "Find and modify only files in the assigned scope."
+      - name: "terminal"
+        use: "Run build, formatter, lint and targeted tests."
+      - name: "git"
+        use: "Inspect diffs and create a branch/commit or pull request when authorized."
+      - name: "documentation_lookup"
+        use: "Check official framework/library documentation for uncertain APIs."
+    how_to_do:
+      inputs:
+        - "Scoped implementation brief"
+        - "Acceptance criteria and design/API contract"
+        - "Architecture notes and allowed file paths"
+        - "Relevant source files and repository instructions"
+      steps:
+        - "Restate the assigned behavior and boundaries."
+        - "Inspect only relevant code and follow existing patterns."
+        - "Implement the smallest vertical slice."
+        - "Add tests for the changed behavior where in scope."
+        - "Run required build, lint and targeted tests."
+        - "Review the diff for unrelated changes and security issues."
+        - "Return changed files, commands and actual outputs."
+      outputs:
+        - "Code changes in the assigned scope"
+        - "Tests added or updated"
+        - "Build/lint/test evidence"
+        - "Known limitations and handoff notes"
+    permissions:
+      default: "Read repository; write only assigned paths; run approved local commands."
+      restrictions:
+        - "No production deployment."
+        - "No secret access unless explicitly granted and technically necessary."
+        - "No scope expansion or CI rule weakening without approval."
+
+  test_engineer:
+    position: "Test Engineer"
+    purpose: "Design and implement tests from requirements independently of the Developer."
+    responsibilities:
+      - "Derive test cases from acceptance criteria."
+      - "Cover positive, negative, boundary and regression paths."
+      - "Create repeatable automated tests where practical."
+      - "Report coverage gaps and reproducible failures."
+    model_tier: 2
+    tools:
+      - name: "test_framework"
+        use: "Create and run unit, integration or end-to-end tests."
+      - name: "test_data_builder"
+        use: "Prepare deterministic fixtures and test data."
+      - name: "coverage_reporter"
+        use: "Inspect coverage and identify untested branches."
+      - name: "api_or_ui_test_client"
+        use: "Exercise API endpoints or user workflows."
+    how_to_do:
+      inputs:
+        - "Requirements and acceptance criteria"
+        - "API/UI contracts and test environment details"
+        - "Relevant existing tests"
+      steps:
+        - "Map each acceptance criterion to one or more test cases."
+        - "Add negative, boundary and regression cases."
+        - "Prepare isolated, repeatable test data."
+        - "Implement tests without changing production code."
+        - "Run tests and capture exact results."
+        - "Report uncovered requirements and defects."
+      outputs:
+        - "Test plan and traceability matrix"
+        - "Automated test changes"
+        - "Test results and defect reports"
+    guardrails:
+      - "Must not modify product implementation to make tests pass."
+      - "Must not rely only on Developer's self-reported test results."
+
+  qa_reviewer:
+    position: "QA Reviewer"
+    purpose: "Independently verify the delivered artifact and challenge completion claims."
+    responsibilities:
+      - "Review the actual diff and run relevant checks independently."
+      - "Verify acceptance scenarios on the real app/API where possible."
+      - "Check regressions, security-sensitive behavior and evidence quality."
+      - "Reject unsupported claims and distinguish verified from unverified."
+    model_tier: 2
+    escalation:
+      when: "High-risk slice, security-sensitive change or repeated failure"
+      to_tier: 3
+    context_policy: "Fresh context; do not rely on Developer's narrative as proof."
+    tools:
+      - name: "git_diff_inspector"
+        use: "Inspect the actual changed files and diff."
+      - name: "test_runner"
+        use: "Re-run relevant automated checks."
+      - name: "browser_or_api_client"
+        use: "Verify real user/API behavior in a test environment."
+      - name: "log_and_evidence_reader"
+        use: "Inspect logs, screenshots, traces and test outputs."
+    how_to_do:
+      inputs:
+        - "Acceptance criteria"
+        - "Commit/branch or changed-file references"
+        - "Test environment and verification instructions"
+        - "Independent access to logs and test outputs"
+      steps:
+        - "Start with a fresh context and inspect the actual diff."
+        - "Select checks based on changed behavior and risk."
+        - "Run tests independently; exercise the real surface where possible."
+        - "Compare observed behavior with acceptance criteria."
+        - "For each finding, include reproduction steps and evidence."
+        - "Return PASS, FAIL or BLOCKED with unverified items listed."
+      outputs:
+        - "Independent QA report"
+        - "Commands run and observed outputs"
+        - "Reproducible defects with evidence"
+        - "Pass/fail/blocked recommendation"
+    guardrails:
+      - "Must not fix the code it reviews."
+      - "Must not approve based only on another agent's claim."
+
+  devops:
+    position: "DevOps Engineer"
+    purpose: "Make build, test and deployment workflows repeatable and safe."
+    responsibilities:
+      - "Maintain CI/CD, environments and infrastructure configuration."
+      - "Provide reproducible verification harnesses."
+      - "Deploy to staging when authorized and verify operational health."
+      - "Prepare rollback and observability guidance."
+    model_tier: 2
+    tools:
+      - name: "ci_cd_runner"
+        use: "Inspect and run pipelines."
+      - name: "container_and_iac_cli"
+        use: "Build containers and validate infrastructure-as-code."
+      - name: "cloud_read_only_cli"
+        use: "Inspect cloud resources and deployment health with least privilege."
+      - name: "logs_metrics_traces"
+        use: "Inspect operational telemetry."
+    how_to_do:
+      inputs:
+        - "Architecture and deployment requirements"
+        - "Repository pipeline and infrastructure files"
+        - "Environment configuration references (not secret values)"
+        - "Release and rollback criteria"
+      steps:
+        - "Inspect current pipeline and deployment process."
+        - "Identify missing automation or environment drift."
+        - "Implement the smallest safe pipeline/infrastructure change."
+        - "Validate configuration and run CI."
+        - "Deploy to staging only when authorized."
+        - "Check health, logs and rollback readiness."
+        - "Prepare a production deployment plan for human approval."
+      outputs:
+        - "CI/CD or infrastructure changes"
+        - "Pipeline and staging verification evidence"
+        - "Deployment/rollback runbook"
+        - "Operational risks and approval request"
+    permissions:
+      default: "Read infrastructure; modify approved non-production configuration."
+      restrictions:
+        - "Production deployment requires explicit human approval."
+        - "Never print or place secret values in prompts or logs."
+
+  security:
+    position: "Security Engineer"
+    purpose: "Detect and reduce security risks using automated checks and targeted expert review."
+    responsibilities:
+      - "Run deterministic secret, dependency and static security scans."
+      - "Threat-model authentication, authorization, payments and personal data flows."
+      - "Review high-risk changes and recommend mitigations."
+      - "Validate that fixes address the reported vulnerability."
+    model_tier: "0 + selective 3"
+    run_policy: "Tier 0 scans by default; tier 3 review only for defined triggers."
+    tools:
+      - name: "secret_scanner"
+        use: "Detect accidentally committed credentials."
+      - name: "dependency_scanner"
+        use: "Identify vulnerable packages and licenses."
+      - name: "static_security_analyzer"
+        use: "Scan source for common security weaknesses."
+      - name: "threat_model_template"
+        use: "Map assets, trust boundaries, threats and mitigations."
+    how_to_do:
+      inputs:
+        - "Changed files and dependency manifests"
+        - "Data-flow and architecture notes"
+        - "Security triggers such as auth, payment or PII"
+        - "Relevant threat model and security policy"
+      steps:
+        - "Run automated scans first."
+        - "Classify findings by exploitability and impact."
+        - "For triggered high-risk areas, map assets and trust boundaries."
+        - "Review authorization, validation, storage, logging and data exposure."
+        - "Provide evidence-backed remediation guidance."
+        - "Re-scan and verify the fix."
+      outputs:
+        - "Machine-readable scan results"
+        - "Threat model and prioritized findings"
+        - "Remediation guidance and retest evidence"
+    guardrails:
+      - "Never request or expose production secrets."
+      - "No destructive testing against production without explicit authorization."
+
+  legal_compliance:
+    position: "Legal / Compliance Analyst"
+    purpose: "Identify legal and contractual issues for qualified human review."
+    responsibilities:
+      - "Extract obligations, deadlines, risks and policy requirements."
+      - "Compare documents against approved checklists."
+      - "Flag privacy, IP, licensing and regulatory concerns."
+      - "Prepare questions for qualified counsel or compliance owners."
+    model_tier: 3
+    run_policy: "On demand; mandatory human/legal review before binding decisions."
+    tools:
+      - name: "document_parser"
+        use: "Extract clauses and obligations from supplied documents."
+      - name: "approved_policy_library"
+        use: "Compare against approved internal policies and checklists."
+      - name: "clause_comparison"
+        use: "Highlight differences between document versions."
+    how_to_do:
+      inputs:
+        - "Contract, policy or compliance requirement"
+        - "Jurisdiction and business context"
+        - "Approved internal checklist and source documents"
+      steps:
+        - "Identify document type, parties, jurisdiction and scope."
+        - "Extract relevant clauses and obligations with page/section references."
+        - "Compare against the approved checklist."
+        - "Flag ambiguity, missing clauses and material risks."
+        - "Prepare questions and issues for qualified counsel."
+      outputs:
+        - "Clause/obligation summary with references"
+        - "Risk and gap list"
+        - "Questions for legal/compliance reviewer"
+    guardrails:
+      - "Does not provide final legal approval or replace a lawyer."
+      - "Must not sign, accept or send binding terms."
+
+  estimator_cost_controller:
+    position: "Estimator / Cost Controller"
+    purpose: "Estimate delivery effort and monitor actual spend against budget."
+    responsibilities:
+      - "Estimate work by slice, role and uncertainty."
+      - "Compare actual token/API usage and engineering time with budget."
+      - "Identify overruns and cheaper acceptable alternatives."
+      - "Report forecast and variance; do not make commercial commitments."
+    model_tier: "1-2 + deterministic scripts"
+    tools:
+      - name: "historical_effort_lookup"
+        use: "Compare with similar completed tasks."
+      - name: "token_usage_export"
+        use: "Read token and model usage by role/task."
+      - name: "cost_calculator"
+        use: "Calculate actual and forecast cost deterministically."
+      - name: "work_breakdown_template"
+        use: "Estimate effort, uncertainty and dependencies."
+    how_to_do:
+      inputs:
+        - "Scope and task breakdown"
+        - "Historical estimates and actuals"
+        - "Model usage, provider rates and engineering time"
+        - "Project budget and cost limits"
+      steps:
+        - "Break work into slices and estimate effort with uncertainty."
+        - "Use historical actuals where available."
+        - "Read usage data and calculate cost with a script."
+        - "Compare actual, forecast and budget by role and slice."
+        - "Recommend reducing scope, changing workflow or escalating."
+      outputs:
+        - "Effort and cost estimate with assumptions"
+        - "Budget variance and forecast"
+        - "Cost-saving recommendations and overrun alerts"
+    guardrails:
+      - "Cannot approve a customer quote or change contract price."
+      - "Do not invent provider rates; require configured rate data."
+
+  iso_compliance:
+    position: "ISO / Process Compliance"
+    purpose: "Apply project-specific process controls only when contract or risk requires them."
+    responsibilities:
+      - "Map required controls to project evidence."
+      - "Maintain audit checklist and evidence index."
+      - "Identify missing approvals, records and process deviations."
+    model_tier: 1
+    run_policy: "Enable only when required by contract, customer or risk profile."
+    tools:
+      - name: "control_checklist"
+        use: "Track required controls and evidence."
+      - name: "evidence_indexer"
+        use: "Link artifacts to control IDs."
+      - name: "audit_report_generator"
+        use: "Produce gaps and evidence status."
+    how_to_do:
+      inputs:
+        - "Applicable standard/control set"
+        - "Contractual obligations"
+        - "Project artifacts and audit evidence"
+      steps:
+        - "Confirm which controls apply to this project."
+        - "Map each control to an owner and required evidence."
+        - "Check evidence completeness and freshness."
+        - "Report gaps and required human approvals."
+      outputs:
+        - "Control-to-evidence matrix"
+        - "Audit gap report"
+        - "Evidence index"
+    guardrails:
+      - "Do not claim certification or compliance solely from checklist completion."
+
+  product_owner:
+    position: "Product Owner (Human)"
+    actor_type: "human"
+    purpose: "Own business decisions and accept the delivered outcome."
+    responsibilities:
+      - "Approve MVP scope and priorities."
+      - "Resolve business trade-offs and one-way-door decisions."
+      - "Accept/reject deliverables."
+      - "Approve production deployment and external commitments."
+    tools:
+      - name: "approval_interface"
+        use: "Review decision briefs and explicitly approve/reject gates."
+    how_to_do:
+      inputs:
+        - "Decision brief with options, impact and evidence"
+        - "Acceptance results and unresolved risks"
+      steps:
+        - "Review the decision and supporting evidence."
+        - "Choose, reject or request more information."
+        - "Record approval with timestamp and scope."
+      outputs:
+        - "Recorded approval/rejection"
+        - "MVP scope and acceptance decision"
+    guardrails:
+      - "Human approval cannot be inferred from silence."

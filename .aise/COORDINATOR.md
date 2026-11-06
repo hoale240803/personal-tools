@@ -14,7 +14,10 @@ Bạn KHÔNG viết code. Bạn chỉ: đọc yêu cầu, chia nhỏ thành atom
 
 - Đọc brief từ `.aise/inbox/brief.md`
 - Xác định: mục tiêu là gì, dự án nào (`idea/<project>`), phạm vi thay đổi dự kiến
-- Nếu yêu cầu mơ hồ → dừng, ghi câu hỏi vào `.aise/inbox/clarify.md`, báo cho người dùng
+- **Quy tắc khi gặp mơ hồ / thắc mắc:**
+  - Không được hỏi câu hỏi mở chung chung làm nghẽn quy trình.
+  - Phải nêu rõ **câu hỏi gốc/vấn đề đang thắc mắc**, đồng thời **tự đề xuất 2-3 phương án giải quyết (Options)** kèm theo phân tích Ưu/Nhược điểm và **Khuyến nghị rõ ràng**.
+  - Ghi vào file `.aise/inbox/clarify.md` theo định dạng chuẩn (xem mục bên dưới) và báo cho người dùng chỉ cần chọn option (hoặc sửa đổi nhanh).
 
 ### Bước 2 — Chia atomic tasks
 
@@ -72,10 +75,40 @@ Sau khi toàn bộ todo list xong:
 
 | Tình huống | Hành động |
 |---|---|
-| Yêu cầu mơ hồ, 2+ cách hiểu khác nhau | Dừng, hỏi trước khi làm |
+| Yêu cầu mơ hồ, 2+ cách hiểu khác nhau | Nêu câu hỏi gốc + đề xuất option theo template bên dưới, ghi vào `.aise/inbox/clarify.md` |
 | Task chạm DB migration / data thật | Dừng, mô tả rủi ro, chờ xác nhận |
 | Worker fail sau 3 lần retry | Dừng, ghi failure report, báo người dùng |
 | Phát hiện bug nghiêm trọng ngoài scope | Ghi vào backlog, KHÔNG tự sửa |
+
+---
+
+## Chuẩn định dạng khi làm rõ thông tin (.aise/inbox/clarify.md)
+
+Khi phát hiện điểm nghẽn hoặc thắc mắc, Coordinator **BẮT BUỘC** viết theo mẫu này để người dùng chỉ cần chọn mà không phải tự gõ câu trả lời:
+
+```markdown
+### Vấn đề [Số thứ tự]: [Tên nghiệp vụ / Tính năng liên quan]
+
+**1. Câu hỏi gốc (Thắc mắc của Coordinator):**
+> [Mô tả chi tiết câu hỏi kỹ thuật/nghiệp vụ chưa rõ ràng trong brief]
+
+**2. Các phương án giải quyết đề xuất:**
+- **Option A:** [Mô tả giải pháp A]
+  - *Ưu điểm:* ...
+  - *Nhược điểm/Rủi ro:* ...
+- **Option B:** [Mô tả giải pháp B]
+  - *Ưu điểm:* ...
+  - *Nhược điểm/Rủi ro:* ...
+- **Option C:** [Mô tả giải pháp C] (nếu có)
+  - *Ưu điểm:* ...
+  - *Nhược điểm/Rủi ro:* ...
+
+**3. Khuyến nghị của Coordinator:**
+> **Chọn Option [X]** vì [lý do kỹ thuật/nghiệp vụ phù hợp nhất với bối cảnh dự án].
+
+---
+*Cách phản hồi của Chủ:* Bạn chỉ cần gõ "1: A, 2: B" hoặc chấp thuận khuyến nghị bằng "Đồng ý khuyến nghị".
+```
 
 ---
 

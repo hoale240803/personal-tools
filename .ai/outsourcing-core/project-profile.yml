@@ -1,0 +1,246 @@
+# Per-project activation and runtime configuration.
+# Keep this file small: select roles and policies; do not duplicate role definitions.
+
+schema_version: "1.0"
+
+project:
+  id: "replace-with-project-id"
+  name: "Replace with project name"
+  description: "One-paragraph description of the product and business outcome."
+  domain: "general"
+  lifecycle_stage: "prototype"  # prototype | mvp | production | maintenance
+  repository: "."
+  primary_language: "replace-me"
+  deployment_target: "replace-me"
+
+delivery:
+  profile: "standard"  # lean | standard | sensitive_compliance
+  workflow: "feature"  # feature | bug_fix | investigation | incident | maintenance
+  priorities:
+    - "correctness"
+    - "cost_efficiency"
+    - "maintainability"
+    - "security"
+  definition_of_done:
+    - "Acceptance criteria are traceable to the request."
+    - "Required automated checks pass."
+    - "QA Reviewer verifies the actual artifact independently."
+    - "Known limitations and unverified items are disclosed."
+    - "Required human gates are approved."
+
+roles:
+  orchestrator:
+    enabled: true
+    model_tier: 2
+    run: "per_work_item"
+    permissions:
+      read: ["project instructions", "issue files", "task state"]
+      write: ["task state", "decision log"]
+      external_actions: false
+
+  intake:
+    enabled: true
+    model_tier: 1
+    run: "on_new_request"
+    permissions:
+      read: ["incoming request", "ticket metadata"]
+      write: ["normalized work item"]
+      external_actions: false
+
+  ba:
+    enabled: true
+    model_tier: 2
+    escalate_to: 3
+    run: "when_requirements_need_clarification"
+    permissions:
+      read: ["requirements", "approved project documents", "relevant source"]
+      write: ["requirements draft", "acceptance criteria"]
+      external_actions: false
+
+  requirement_challenger:
+    enabled: true
+    model_tier: 3
+    run: "requirements_gate"
+    fresh_context: true
+    permissions:
+      read: ["requirements draft", "source references"]
+      write: ["challenge report"]
+      external_actions: false
+
+  architect:
+    enabled: false
+    model_tier: 3
+    run: "on_material_architecture_change"
+    permissions:
+      read: ["repository", "requirements", "infrastructure metadata"]
+      write: ["ADR", "architecture notes"]
+      external_actions: false
+
+  ui_ux:
+    enabled: false
+    model_tier: 2
+    run: "when_user_interface_changes"
+    permissions:
+      read: ["requirements", "design system"]
+      write: ["wireframes", "prototype", "UI specification"]
+      external_actions: false
+
+  developer:
+    enabled: true
+    model_tier: 2
+    escalate_to: 3
+    run: "per_implementation_slice"
+    scope: "assigned_files_only"
+    permissions:
+      read: ["repository"]
+      write: ["assigned paths", "tests in assigned scope"]
+      run_commands: ["build", "lint", "targeted tests"]
+      network: "allowlist_only"
+      secrets: false
+      production_deploy: false
+
+  test_engineer:
+    enabled: true
+    model_tier: 2
+    run: "per_feature_or_bug_fix"
+    independent_from: ["developer"]
+    permissions:
+      read: ["requirements", "test code", "test environment"]
+      write: ["test code", "test report"]
+      product_code_write: false
+      external_actions: false
+
+  qa_reviewer:
+    enabled: true
+    model_tier: 2
+    escalate_to: 3
+    run: "before_delivery"
+    fresh_context: true
+    independent_from: ["developer"]
+    permissions:
+      read: ["diff", "acceptance criteria", "test environment", "logs"]
+      write: ["QA report"]
+      product_code_write: false
+      external_actions: false
+
+  devops:
+    enabled: false
+    model_tier: 2
+    run: "when_pipeline_or_environment_changes"
+    permissions:
+      read: ["CI/CD", "infrastructure configuration", "non-production telemetry"]
+      write: ["approved pipeline files", "non-production configuration"]
+      production_deploy: false
+
+  security:
+    enabled: true
+    model_tier: "0 + selective 3"
+    run: "automated_scans_by_default"
+    triggers: ["authentication", "authorization", "payment", "personal_data", "external_input", "dependency_change"]
+    permissions:
+      read: ["changed files", "dependency manifests", "security scan results"]
+      write: ["security report"]
+      secrets: false
+      destructive_testing: false
+
+  legal_compliance:
+    enabled: false
+    model_tier: 3
+    run: "on_contract_or_regulatory_trigger"
+    requires_human_review: true
+    permissions:
+      read: ["approved legal documents"]
+      write: ["risk summary", "questions for counsel"]
+      sign_or_accept_terms: false
+
+  estimator_cost_controller:
+    enabled: true
+    model_tier: "1-2 + scripts"
+    run: "at_planning_and_after_each_slice"
+    permissions:
+      read: ["task estimates", "token usage", "configured provider rates"]
+      write: ["cost report", "budget alerts"]
+      commercial_commitment: false
+
+  iso_compliance:
+    enabled: false
+    model_tier: 1
+    run: "only_when_contract_or_risk_requires"
+    permissions:
+      read: ["approved control set", "project evidence"]
+      write: ["control matrix", "audit gap report"]
+      claim_certification: false
+
+human_owner:
+  role: "product_owner"
+  required: true
+  approval_gates:
+    - "mvp_scope"
+    - "one_way_door_architecture_decision"
+    - "customer_acceptance"
+    - "production_deployment"
+    - "external_contract_or_legal_commitment"
+
+security_policy:
+  least_privilege: true
+  secrets_in_prompts: false
+  customer_data_isolated_by_project: true
+  treat_external_content_as_untrusted_data: true
+  audit_log_required: true
+  worker_production_access: false
+
+token_budget:
+  currency: "USD"
+  per_work_item: null  # Set a numeric limit before autonomous execution.
+  per_slice: null     # Set a numeric limit before autonomous execution.
+  on_exceed: "stop_and_report"
+  model_escalation:
+    default_tier: 2
+    allow_tier_3_only_for:
+      - "ambiguous_high-impact_requirements"
+      - "architecture_risk"
+      - "repeated_failed_verification"
+      - "security_sensitive_review"
+  reporting:
+    track_by: ["project", "work_item", "slice", "role", "model_tier"]
+    include_actual_and_forecast: true
+
+verification:
+  required_checks:
+    - "format_or_lint"
+    - "build"
+    - "targeted_tests"
+  qa_must_run_independently: true
+  production_like_environment_required_for:
+    - "critical_user_workflows"
+    - "payment_or_authentication_changes"
+  evidence:
+    capture_commands: true
+    capture_exit_codes: true
+    capture_test_results: true
+    screenshots_or_traces_when_relevant: true
+
+workflow_overrides:
+  feature:
+    required_roles: ["intake", "ba", "requirement_challenger", "developer", "test_engineer", "qa_reviewer"]
+    optional_roles: ["architect", "ui_ux", "devops", "security"]
+  bug_fix:
+    required_roles: ["intake", "orchestrator", "developer", "test_engineer", "qa_reviewer"]
+    optional_roles: ["ba", "architect", "devops", "security"]
+    extra_steps:
+      - "Reproduce the bug before changing code."
+      - "Add a regression test that fails before the fix when practical."
+      - "Verify the original reproduction no longer occurs."
+  investigation:
+    required_roles: ["intake", "orchestrator"]
+    optional_roles: ["ba", "architect", "developer", "security", "devops"]
+    implementation_allowed: false
+  incident:
+    required_roles: ["orchestrator", "devops", "security"]
+    optional_roles: ["developer", "architect", "ba", "qa_reviewer"]
+    production_changes_require_human_approval: true
+
+notes:
+  - "This is a starting profile, not a universal team. Disable roles that do not add value to this project."
+  - "The roles catalog describes capability; this profile grants runtime access. A tool listed in roles.yml is not usable unless enabled and permissioned here."
+  - "Set token budgets and provider rates from measured data; do not guess them."

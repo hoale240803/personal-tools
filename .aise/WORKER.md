@@ -29,18 +29,27 @@ Nếu brief thiếu thông tin → DỪNG, ghi câu hỏi vào `.aise/tasks/TASK
 - Xóa code cũ trước khi thêm code mới
 - Comment chỉ để giải thích *vì sao*, không giải thích *cái gì*
 
-### Bước 3 — Tự verify
+### Bước 3 — Tự verify & Xuất bằng chứng (Evidence Capture)
 
-Chạy lệnh verify được chỉ định trong brief.
+Chạy script thu thập bằng chứng để vừa kiểm thử vừa đóng gói dữ liệu cho Tester độc lập:
 
-Nếu chưa có lệnh verify cụ thể, chạy theo thứ tự:
+```bash
+# Nếu là task logic/CLI:
+node .aise/scripts/capture-evidence.mjs --task=TASK-XXX --cmd="<lệnh verify của bạn>"
+
+# Nếu là task có giao diện UI đang chạy ở localhost:
+node .aise/scripts/capture-evidence.mjs --task=TASK-XXX --cmd="<lệnh verify>" --url="http://localhost:3000"
 ```
-1. Type check (nếu có TypeScript): pnpm tsc --noEmit
-2. Lint: pnpm lint
-3. Unit test: pnpm test
-```
 
-**Không được báo "xong" nếu chưa chạy verify và thấy output xanh.**
+Script này sẽ tự động:
+1. Chạy lệnh verify và lưu log vào `.aise/storage/evidence/execution.log`.
+2. Chụp ảnh màn hình UI (nếu có `--url`) vào `.aise/storage/evidence/TASK-XXX-ui.png`.
+3. Tạo gói câu hỏi kiểm định tại `.aise/storage/evidence/PASTE_TO_WEB_AI.md`.
+4. **(Giai đoạn 2 - Tự động hoàn toàn):** Nếu có `GEMINI_API_KEY` trong `.aise/.env`, script sẽ **tự động gọi Gemini API đóng vai Tester độc lập** để chấm điểm ngay lập tức và ghi kết quả vào `.aise/feedback.json`.
+   - Nếu Gemini trả về `verdict: "FAIL"` (Exit code 2): Bạn **TỰ ĐỘNG chuyển sang đọc `.aise/feedback.json` và sửa lỗi ngay lập tức** (tối đa 3 vòng lặp) mà không cần chờ người dùng nhắc!
+   - Nếu Gemini trả về `verdict: "PASS"` (Exit code 0): Bạn mới được phép sang Bước 4 ghi kết quả hoàn tất.
+
+**Không được báo "xong" nếu chưa chạy lệnh capture-evidence và đạt `verdict: "PASS"`.**
 
 ### Bước 4 — Ghi kết quả
 
@@ -53,12 +62,32 @@ DONE / FAIL / BLOCKED
 ## Diff tóm tắt
 [Mô tả ngắn những gì đã thay đổi]
 
+## Bằng chứng đã xuất
+- Log: `.aise/storage/evidence/execution.log`
+- Prompt cho Web AI Tester: `.aise/storage/evidence/PASTE_TO_WEB_AI.md` (Đã copy vào Clipboard)
+
 ## Output verify (nguyên văn)
 [Paste output của lệnh verify]
 
 ## Điều chưa chắc / rủi ro
 [Nếu có]
 ```
+
+---
+
+## Chế độ Sửa lỗi từ Tester Độc lập (Feedback Fix Loop)
+
+Khi nhận được lệnh: **"Đọc `.aise/feedback.json` và fix bug"**, bạn thực hiện quy trình sau:
+
+1. **Đọc `.aise/feedback.json`:**
+   - Kiểm tra trường `verdict`. Nếu là `"PASS"` → Không làm gì thêm, báo cáo task đã hoàn tất.
+   - Kiểm tra `retryCount`. Nếu `retryCount > 3` → **DỪNG NGAY LẬP TỨC**, ghi báo cáo bế tắc vào `.aise/failures.md` để Chủ dự án can thiệp.
+2. **Xử lý từng lỗi trong mảng `issues`:**
+   - Đọc kỹ `evidence`, `expected`, và `suggestedFix` của từng `BUG-XX`.
+   - Chỉ sửa đúng những file nằm trong phạm vi task để giải quyết triệt để lỗi được nêu.
+3. **Chạy lại Capture Evidence:**
+   - Sau khi sửa xong, bắt buộc chạy lại `node .aise/scripts/capture-evidence.mjs ...` để cập nhật log mới, ảnh mới và copy prompt mới vào Clipboard cho vòng kiểm định tiếp theo.
+   - Cập nhật lại `.aise/tasks/TASK-XXX-result.md`.
 
 ---
 

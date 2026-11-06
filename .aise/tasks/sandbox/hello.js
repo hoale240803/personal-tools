@@ -1,5 +1,6 @@
-export function hello(name) {
+function hello(name) {
   return `Hello, ${name}!`;
 }
 
 console.log(hello("AISE"));
+module.exports = { hello };
