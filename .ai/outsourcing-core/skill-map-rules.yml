@@ -1,0 +1,234 @@
+# AISE Future Company — Skill Map Rules & Operational Checklists
+# Encodes Spatial (Where), Temporal (When/Order), and Governance (Who/What/Checklists) rules.
+# Referenced by project-profile.yml, roles.yml, and workforce-runtime.yml.
+
+schema_version: "1.0"
+
+meta_principles:
+  encode_lessons_in_structure:
+    rule: "If an agent repeats the same mistake twice, convert the instruction into a deterministic lint rule, runtime check, or test script rather than adding prose to prompts."
+  single_verify_entrypoint:
+    rule: "Every repository must expose a single deterministic verification command (e.g., verify = format + lint + typecheck + build + targeted tests) so agents never guess how to verify."
+  three_pillars_for_all_clients:
+    user_experience: "Zero dead-ends; every screen/flow covers 5 states (ideal, loading, empty, error, partial/overflow) and passes real-surface interaction."
+    high_security: "Zero-trust by design; deterministic secret/CVE/SAST scans on every commit plus Tier-3 threat modeling on sensitive triggers."
+    minimal_infra_max_performance: "Prefer boring, proven technology and modular architecture; eliminate N+1 queries, memory leaks, and idle LLM loops before scaling hardware."
+
+# ==============================================================================
+# 1. SPATIAL DIMENSION (KHÔNG GIAN: Thư mục, Bộ nhớ, Database, Cloud)
+# ==============================================================================
+spatial_architecture:
+  project_directory_layout:
+    description: "Standardized repository anatomy to prevent file sprawl and enforce strict write boundaries."
+    paths:
+      project_governance: ".aise/"
+      specifications_and_adrs: ".aise/specs/"
+      append_only_decisions: ".aise/decisions/decisions.jsonl"
+      verification_evidence: ".aise/evidences/<task_id>/"
+      production_source: "src/"
+      automated_tests: "tests/"
+      infrastructure_and_ci: "infra/"
+    protected_read_only_paths_for_workers:
+      - ".aise/project-profile.yml"
+      - "eslint.config.* / .eslintrc.* / biome.json / ruff.toml"
+      - "tsconfig.json / pyproject.toml / compiler flags"
+      - ".github/workflows/* / .gitlab-ci.yml"
+      - "package.json / lockfiles (unless dependency change is explicitly approved)"
+      - "coverage threshold configurations"
+
+  worktree_and_branch_isolation:
+    separate_worktree_per_active_slice: true
+    naming_convention: "worktrees/<project_id>/<task_id>-<owner_role>"
+    concurrent_file_edit_policy: "strictly_forbidden_without_merge_plan"
+    cleanup_policy: "Remove ephemeral worktree only after QA Reviewer PASS and branch merge; preserve evidence artifacts."
+
+  memory_hierarchy:
+    tier_1_working_memory:
+      scope: "Current active session only"
+      contents: ["scoped task brief", "acceptance criteria", "explicit file pointers (not full repo dumps)"]
+      lifecycle: "Destroyed immediately when agent transitions to WAITING, BLOCKED, REVIEW, or DONE."
+    tier_2_episodic_memory:
+      scope: "Project task database and append-only event log"
+      contents: ["task state transitions", "checkpoints", "decision log", "command outputs", "token/cost ledger"]
+      lifecycle: "Immutable, append-only across project lifetime."
+    tier_3_semantic_memory:
+      scope: "Indexed project knowledge base"
+      contents: ["approved ADRs", "domain glossary", "coding conventions", "reusable utility catalog"]
+      lifecycle: "Updated only upon verified architectural or domain changes."
+
+  database_and_cloud_topology:
+    local_sandbox:
+      purpose: "Developer and Test Engineer inner-loop execution"
+      data_policy: "Deterministic seed data and isolated fixtures only; zero customer PII."
+      teardown: "Reset state before and after each test run."
+    staging_ephemeral:
+      purpose: "QA Reviewer real-surface verification and DevOps integration checks"
+      data_policy: "Synthetic or strictly anonymized data mirroring production schema."
+      access: "DevOps (deploy), QA Reviewer & Test Engineer (drive and inspect)."
+    production:
+      purpose: "Live customer workload"
+      data_policy: "Strict project isolation; encrypted at rest and in transit."
+      access: "Zero direct worker access; deployment gated by Human Product Owner approval and verified rollback runbook."
+
+# ==============================================================================
+# 2. TEMPORAL DIMENSION (THỜI GIAN: Trình tự Trước-Sau, Song song & 5 Kịch bản)
+# ==============================================================================
+temporal_workflows:
+  causality_laws:
+    must_happen_sequentially:
+      - "Intake normalization -> BA specification -> Requirement Challenger review -> Scope Gate approval."
+      - "Data structure & type/schema definition -> Business logic implementation."
+      - "Bug reproduction & failing regression test -> Bug fix implementation -> Re-verification on exact reproduction surface."
+      - "Developer self-check -> Security Tier-0 scan & Test Engineer execution -> QA Reviewer independent verification -> Human Production Gate."
+    must_happen_in_parallel:
+      - "While Developer implements code for a slice, Test Engineer prepares test plans and deterministic fixtures from the same approved Acceptance Criteria."
+      - "While BA waits for external stakeholder clarification on Feature A, Developer executes approved READY slices on Feature B or runs bounded technical spikes."
+      - "When QA Reviewer rejects Slice 1 and creates a defect task for Developer, QA Reviewer immediately proceeds to verify Slice 2."
+
+  loop_separation:
+    outer_loop:
+      owners: ["intake", "orchestrator", "ba", "requirement_challenger", "estimator_cost_controller", "product_owner"]
+      purpose: "Triage external signals, eliminate ambiguity, lock scope/budget, and decompose work into atomic vertical slices."
+    inner_loop:
+      owners: ["developer", "test_engineer", "security", "qa_reviewer", "devops"]
+      purpose: "Execute scoped slices in isolated worktrees, run deterministic verification loops, and produce evidence packages."
+
+  operational_scenarios:
+    scenario_1_new_project_intake_to_delivery:
+      steps:
+        - "1. Intake normalizes raw request, deduplicates, and separates stated facts from assumptions."
+        - "2. Orchestrator loads project-profile.yml, selects engagement policy (Fixed-Price / ODC / T&M / SLA), and activates required roles."
+        - "3. BA drafts traceable requirements and Given/When/Then acceptance criteria."
+        - "4. Requirement Challenger (fresh context, Tier 3) attacks the spec for contradictions, missing actors, race conditions, and boundary gaps."
+        - "5. Architect defines module boundaries, ADRs, and minimal-infra constraints; UI/UX maps 5-state screens; Estimator calculates slice budgets."
+        - "6. Product Owner approves MVP scope and one-way-door decisions."
+        - "7. Orchestrator dispatches parallel vertical slices to Developer (code) and Test Engineer (test suite) in isolated worktrees."
+        - "8. Security runs Tier-0 scans (and Tier-3 threat model if triggered); QA Reviewer verifies on real surface with fresh context."
+        - "9. DevOps validates staging health and rollback runbook; Product Owner approves production release."
+
+    scenario_2_issue_bug_or_incident_handling:
+      steps:
+        - "1. Triage severity: P0/P1 production incident triggers 'incident' playbook; standard defect triggers 'bug_fix' playbook."
+        - "2. Reproduce First: Agent must reproduce the exact symptom on the target surface before modifying product code. If non-reproducible, switch to read-only 'investigation' mode."
+        - "3. Red Test First: Commit a deterministic regression test that fails with the exact reported symptom."
+        - "4. Minimal Fix: Developer applies the smallest root-cause fix within assigned scope without breaking existing tests."
+        - "5. Two-Failure Premise Check: If 2 fix attempts sharing the same premise fail, STOP coding, write down the premise, and test the premise directly or escalate to Tier 3."
+        - "6. Independent Verification: QA Reviewer re-runs the exact reproduction steps and captures Before vs After evidence."
+
+    scenario_3_no_active_project_or_idle_workforce:
+      steps:
+        - "1. Default Zero-Cost Hibernation: Immediately transition idle agents to IDLE state and terminate active LLM sessions (0 token spend)."
+        - "2. Scheduled Proactive Maintenance (only if enabled by project policy during maintenance windows):"
+        - "   - Security runs deterministic CVE/dependency vulnerability scans (Tier 0)."
+        - "   - Test Engineer analyzes coverage gaps and drafts prioritized test proposals."
+        - "   - BA & Architect audit shipped behavior against docs to draft documentation updates and measurable tech-debt proposals."
+        - "3. Guardrail: Proactive work outputs proposals/drafts only; never alters production code or scope without Product Owner approval."
+
+    scenario_4_deadline_crunch_mode:
+      steps:
+        - "1. Scope Triage (MoSCoW): Orchestrator and Estimator calculate remaining velocity and propose deferring P2/Nice-to-Have slices to Product Owner."
+        - "2. Max Parallelism & Work Stealing: Increase active agent slots up to project cap; idle agents automatically pull READY slices from the queue."
+        - "3. Proactive Tier Escalation: Route high-complexity critical-path slices directly to Tier-3 models to achieve one-shot implementation."
+        - "4. Non-Negotiable Quality Gates: Never disable linters, never skip Security Tier-0 scans, and never bypass independent QA Reviewer."
+
+    scenario_5_blocked_remote_restricted_or_resource_constrained:
+      steps:
+        - "1. External Blocker (waiting on client/human/permission): Persist checkpoint, record exact blocked_reason and next_action, set task BLOCKED/WAITING, release worker slot, and switch to another READY or soft-dependency task."
+        - "2. Web/UI Gate (Login, 2FA, CAPTCHA, Anti-bot, No API): Never bypass or scrape. Invoke browser_handoff with concise human instructions; never ask for credentials or session cookies."
+        - "3. Provider Quota/Rate-Limit/Outage (429/503): Open provider circuit breaker (900s cooldown) and fallback in order: deterministic_tool -> local_model (local_ollama) -> approved_free_api -> approved_paid_api -> WAITING_FOR_BUDGET."
+        - "4. Hardware/Machine Constraint: Run targeted tests for modified modules locally, offload full suite to CI, and explicitly log any environment-blocked checks under 'Unverified Items' in QA report."
+        - "5. Stale/Crashed Agent Session: Scheduler detects expired lease (20 min), recovers from last persisted checkpoint, and requeues slice."
+
+# ==============================================================================
+# 3. GOVERNANCE & ROLE CHECKLISTS (QUYỀN HẠN, TRÁCH NHIỆM & CHỐNG "HƯ BỘT HƯ ĐƯỜNG")
+# ==============================================================================
+governance_and_checklists:
+  separation_of_powers:
+    creator_roles: ["ba", "architect", "ui_ux", "developer", "devops"]
+    challenger_and_verifier_roles: ["requirement_challenger", "test_engineer", "qa_reviewer", "security", "iso_compliance"]
+    governor_and_approver_roles: ["orchestrator", "estimator_cost_controller", "legal_compliance", "product_owner"]
+    iron_rules:
+      - "No role may approve or verify its own output."
+      - "Challenger and Verifier roles have read-only access to the artifacts they inspect (cannot rewrite BA specs or fix Developer code)."
+      - "Workers cannot modify linter rules, compiler strictness, CI workflows, or test thresholds to force a green build."
+
+  customer_engagement_checklists:
+    fixed_price:
+      - "Lock baseline requirements with traceable IDs before coding."
+      - "Every requirement must pass Requirement Challenger review."
+      - "Enforce strict per-slice token/cost ceiling via Estimator."
+      - "Route any unstated customer request to BA + Estimator to generate a formal Change Request (CR)."
+    odc_dedicated_team:
+      - "Assimilate 100% into client repository conventions, PR templates, and branching strategy."
+      - "Maintain strict cross-project isolation (separate workspaces, secrets, and memory)."
+      - "Track velocity, defect escape rate, and automated test coverage trend per sprint."
+    time_and_materials:
+      - "Log granular token usage, model tier, duration, and artifacts per slice."
+      - "Deliver verifiable evidence packages alongside every completed task."
+    managed_service_sla:
+      - "Automate alert intake and severity classification."
+      - "Enforce Reproduce -> Failing Regression Test -> Fix -> Rollback Check on every hotfix."
+
+  role_skill_checklists:
+    developer_senior:
+      codebase_and_architecture:
+        - "Read neighboring files first to match existing naming conventions, folder structure, error handling, and logging style."
+        - "Define data structures, interfaces, and boundary validation schemas (e.g., Zod/Pydantic/DTO) before writing business logic."
+        - "Apply SOLID principles: Single Responsibility per function/class, Open/Closed via composition/interfaces, Dependency Inversion for testability."
+        - "Use appropriate Design Patterns (Strategy, Factory, Adapter, Repository, Observer) only when solving real extensibility needs; forbid speculative over-engineering."
+      clean_and_reusable_code:
+        - "Zero Magic Code: Replace all magic numbers and hardcoded strings with named constants, enums, or typed config."
+        - "Strict DRY & Reusability: Search the repository for existing helpers, hooks, or services before writing new utility code."
+        - "Delete dead code, commented-out blocks, and temporary debug logs before committing."
+      security_and_integrity:
+        - "Never introduce packages with High/Critical CVEs, unmaintained repos, or incompatible licenses."
+        - "Validate and sanitize all external inputs; use parameterized queries; enforce authorization checks at service boundaries."
+        - "Forbidden shortcuts: Never use @ts-ignore, eslint-disable, unrestricted 'any', empty catch blocks, or test .skip/.only."
+
+    test_engineer_senior:
+      mandatory_execution:
+        - "Every code modification or bug fix—no matter how small—triggers automated test execution."
+        - "Never trust Developer self-reported test results; run the test suite independently."
+      prioritized_test_design:
+        - "Priority 1 (Core User Flows): Test high-frequency happy paths that 80%+ of real users execute daily."
+        - "Priority 2 (Negative & Failure Modes): Test invalid inputs, missing fields, expired auth, unauthorized roles, and network/downstream timeouts."
+        - "Priority 3 (Rare Edge & Boundary Cases): Test 0, -1, MAX_INT, empty collections, massive payloads, Unicode/special chars, leap-year/timezone boundaries, and concurrent race conditions (double submit)."
+      test_integrity:
+        - "Test observable behavior and business outcomes, never internal implementation details or tautologies (e.g., expect(true).toBe(true))."
+        - "Use deterministic fixtures and isolated test databases with automatic cleanup."
+        - "Sacred Guardrail: Never edit product source code or relax test assertions to make a failing test pass."
+
+    qa_reviewer_senior:
+      independent_audit:
+        - "Initialize in a fresh context without Developer's conversational narrative."
+        - "Inspect git diff line-by-line to confirm SOLID compliance, zero magic values, and zero tampering with config/linter/test files."
+      real_surface_verification_loop:
+        - "1. Launch: Start the real application/service and wait for readiness signal."
+        - "2. Doctor: Verify environment health, database connectivity, and absence of startup errors."
+        - "3. Drive: Interact with the real UI (headless/headed browser) or real API endpoints like a human user across all 5 UI states and edge cases."
+        - "4. Evidence: Capture exact commands run, exit codes, structured application logs, before/after screenshots, and network/DOM traces."
+        - "5. Cleanup: Tear down test artifacts while preserving the evidence package in .aise/evidences/<task_id>/."
+      verdict_honesty:
+        - "Issue PASS only when all acceptance criteria are proven by captured evidence."
+        - "Explicitly list any environment-restricted or unverified items under 'Known Limitations & Unverified Items'."
+
+    architect_senior:
+      - "Classify every design choice as Two-Way Door (reversible locally) or One-Way Door (requires Human Product Owner approval)."
+      - "Enforce minimal infrastructure and maximum performance: ban N+1 queries, mandate pagination/indexing/caching strategies, and reject redundant microservices."
+      - "Document module boundaries, data ownership, and failure modes in concise ADRs."
+
+    security_senior:
+      - "Execute Tier-0 deterministic scanners (secrets, SAST, dependency CVEs, license compliance) on every slice."
+      - "Trigger Tier-3 Threat Modeling (STRIDE / trust boundaries) whenever changes touch auth, payments, PII, external inputs, or new dependencies."
+      - "Verify remediation by re-running the exact exploit/scan check."
+
+    ba_and_requirement_challenger:
+      - "Every requirement must cite its source (customer statement, contract clause, or existing codebase behavior)."
+      - "Acceptance criteria must be written in testable Given/When/Then scenarios covering happy, negative, and boundary paths."
+      - "Requirement Challenger must actively probe for rule contradictions, state deadlocks, and abuse cases before coding begins."
+
+    devops_senior:
+      - "Maintain reproducible, single-command build and verification harnesses."
+      - "Verify rollback runbooks on staging before requesting human approval for production deployment."
+      - "Ensure zero secrets are printed in CI logs, error traces, or agent prompts."
+

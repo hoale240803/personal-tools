@@ -9,6 +9,7 @@ project:
   description: "One-paragraph description of the product and business outcome."
   domain: "general"
   lifecycle_stage: "prototype"  # prototype | mvp | production | maintenance
+  engagement_model: "fixed_price"  # fixed_price | odc | time_and_materials | managed_service_sla
   repository: "."
   primary_language: "replace-me"
   deployment_target: "replace-me"
@@ -16,17 +17,45 @@ project:
 delivery:
   profile: "standard"  # lean | standard | sensitive_compliance
   workflow: "feature"  # feature | bug_fix | investigation | incident | maintenance
+  skill_map_rules_ref: "./skill-map-rules.yml"
   priorities:
     - "correctness"
-    - "cost_efficiency"
-    - "maintainability"
     - "security"
+    - "user_experience"
+    - "performance_per_infrastructure_cost"
+    - "maintainability"
+    - "cost_efficiency"
   definition_of_done:
     - "Acceptance criteria are traceable to the request."
-    - "Required automated checks pass."
-    - "QA Reviewer verifies the actual artifact independently."
-    - "Known limitations and unverified items are disclosed."
+    - "Code adheres to project conventions, SOLID principles, and zero magic values."
+    - "No config, linter, or test-threshold tampering occurred in the diff."
+    - "Required automated checks (format, lint, typecheck, build, targeted + regression tests) pass."
+    - "Security tier-0 scans pass with zero high/critical unmitigated vulnerabilities."
+    - "QA Reviewer verifies the actual artifact independently on the real surface with user-like evidence (logs, screenshots, traces)."
+    - "Known limitations and unverified items are explicitly disclosed."
     - "Required human gates are approved."
+
+engagement_policies:
+  fixed_price:
+    scope_change_policy: "strict_change_request_required"
+    mandatory_roles: ["intake", "ba", "requirement_challenger", "estimator_cost_controller", "developer", "test_engineer", "qa_reviewer", "security"]
+    budget_enforcement: "hard_cap_per_slice"
+    focus: "Prevent scope creep, challenge requirements early, lock acceptance criteria before coding."
+  odc:
+    scope_change_policy: "sprint_backlog_prioritized"
+    mandatory_roles: ["orchestrator", "architect", "developer", "test_engineer", "qa_reviewer", "devops", "security"]
+    budget_enforcement: "sprint_velocity_and_monthly_cap"
+    focus: "Assimilate deeply into client codebase conventions, maintain isolated persistent context, maximize throughput."
+  time_and_materials:
+    scope_change_policy: "flexible_with_cost_forecast"
+    mandatory_roles: ["intake", "orchestrator", "estimator_cost_controller", "developer", "test_engineer", "qa_reviewer"]
+    budget_enforcement: "transparent_per_slice_ledger"
+    focus: "Attach granular token/effort usage, decision logs, and verification evidence to every billed work item."
+  managed_service_sla:
+    scope_change_policy: "incident_and_maintenance_bound"
+    mandatory_roles: ["intake", "orchestrator", "devops", "security", "developer", "test_engineer", "qa_reviewer"]
+    budget_enforcement: "sla_tier_cap"
+    focus: "Minimize MTTR, enforce reproduce-before-fix, mandatory regression tests, and verified rollback runbooks."
 
 roles:
   orchestrator:
@@ -94,7 +123,8 @@ roles:
     permissions:
       read: ["repository"]
       write: ["assigned paths", "tests in assigned scope"]
-      run_commands: ["build", "lint", "targeted tests"]
+      protected_paths_read_only: ["linter configs", "tsconfig/compiler configs", "CI pipelines", "coverage thresholds", "dependency manifests unless authorized"]
+      run_commands: ["format", "lint", "typecheck", "build", "targeted tests"]
       network: "allowlist_only"
       secrets: false
       production_deploy: false
@@ -104,10 +134,15 @@ roles:
     model_tier: 2
     run: "per_feature_or_bug_fix"
     independent_from: ["developer"]
+    test_priority_order:
+      - "tier_1_high_frequency_user_happy_paths"
+      - "tier_2_negative_validation_auth_and_error_paths"
+      - "tier_3_boundary_concurrency_and_rare_edge_cases"
     permissions:
-      read: ["requirements", "test code", "test environment"]
-      write: ["test code", "test report"]
+      read: ["requirements", "acceptance criteria", "test code", "test environment"]
+      write: ["test code", "test fixtures", "test report"]
       product_code_write: false
+      config_or_threshold_write: false
       external_actions: false
 
   qa_reviewer:
@@ -116,10 +151,10 @@ roles:
     escalate_to: 3
     run: "before_delivery"
     fresh_context: true
-    independent_from: ["developer"]
+    independent_from: ["developer", "test_engineer"]
     permissions:
-      read: ["diff", "acceptance criteria", "test environment", "logs"]
-      write: ["QA report"]
+      read: ["diff", "acceptance criteria", "test environment", "logs", "screenshots", "traces"]
+      write: ["QA report", "evidence index"]
       product_code_write: false
       external_actions: false
 
@@ -137,6 +172,7 @@ roles:
     model_tier: "0 + selective 3"
     run: "automated_scans_by_default"
     triggers: ["authentication", "authorization", "payment", "personal_data", "external_input", "dependency_change"]
+    block_on_cve_severity: ["high", "critical"]
     permissions:
       read: ["changed files", "dependency manifests", "security scan results"]
       write: ["security report"]
@@ -177,6 +213,7 @@ human_owner:
   approval_gates:
     - "mvp_scope"
     - "one_way_door_architecture_decision"
+    - "dependency_or_paid_infra_addition"
     - "customer_acceptance"
     - "production_deployment"
     - "external_contract_or_legal_commitment"
@@ -186,6 +223,8 @@ security_policy:
   secrets_in_prompts: false
   customer_data_isolated_by_project: true
   treat_external_content_as_untrusted_data: true
+  block_vulnerable_or_unmaintained_packages: true
+  forbid_linter_or_typecheck_suppression: true
   audit_log_required: true
   worker_production_access: false
 
@@ -206,10 +245,22 @@ token_budget:
     include_actual_and_forecast: true
 
 verification:
-  required_checks:
-    - "format_or_lint"
-    - "build"
-    - "targeted_tests"
+  mandatory_on_any_code_change: true
+  single_verify_command_preferred: true
+  tiers:
+    tier_1_fast_static_and_unit:
+      - "format_or_lint"
+      - "strict_typecheck"
+      - "build"
+      - "targeted_unit_tests"
+    tier_2_behavioral_integration:
+      - "api_or_service_contract_tests"
+      - "regression_tests_for_modified_modules"
+      - "high_frequency_user_path_tests"
+      - "boundary_and_edge_case_tests"
+    tier_3_real_surface_verification:
+      - "drive_real_app_or_api_surface"
+      - "verify_ui_states_empty_loading_error_ideal"
   qa_must_run_independently: true
   production_like_environment_required_for:
     - "critical_user_workflows"
@@ -218,7 +269,10 @@ verification:
     capture_commands: true
     capture_exit_codes: true
     capture_test_results: true
-    screenshots_or_traces_when_relevant: true
+    capture_structured_logs: true
+    capture_screenshots_or_dom_snapshots: true
+    capture_network_or_execution_traces: true
+    require_before_and_after_on_ui_or_bug_fix: true
 
 workflow_overrides:
   feature:

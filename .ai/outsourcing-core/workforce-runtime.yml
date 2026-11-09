@@ -119,6 +119,13 @@ task_system:
     - "Orchestrator tracks dependencies; it must not become a single serial bottleneck."
     - "Do not bypass a hard dependency just to keep an agent busy."
 
+  deadline_and_degraded_mode_rules:
+    - "Near deadline: Estimator and Orchestrator propose MoSCoW scope triage (lock P0 Must-Haves, defer P2 Nice-to-Haves) to Product Owner."
+    - "Near deadline: Enable work stealing and proactive Tier-3 escalation for critical-path slices; never skip Security Tier-0 or independent QA Reviewer."
+    - "Repeated failure guard: If two fix attempts sharing the same premise fail, stop looping, write down the premise, and test/escalate it directly."
+    - "Remote or hardware constraint: Run targeted verification locally, offload heavy suites to CI, and disclose any environment-blocked checks under Unverified Items."
+    - "No active project: Immediately enter zero-cost IDLE hibernation (0 LLM tokens); run read-only proactive maintenance only during approved windows."
+
   work_sources:
     approved_backlog:
       - "Project roadmap items approved by Product Owner"
