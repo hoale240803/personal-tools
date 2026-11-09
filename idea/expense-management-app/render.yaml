@@ -24,6 +24,8 @@ services:
     startCommand: cd api && npm run start
     healthCheckPath: /api/health
     envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
       - key: NODE_ENV
         value: production
       - key: PORT
@@ -62,6 +64,8 @@ services:
       paths:
         - web/**
     envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
       - key: VITE_API_BASE_URL
         value: https://expense-api-th7o.onrender.com
     headers:

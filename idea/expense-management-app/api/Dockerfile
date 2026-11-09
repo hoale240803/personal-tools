@@ -3,7 +3,9 @@
 # Stage 2: lean production image (no dev deps, no source)
 
 # ── Stage 1: Builder ──────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:24.22.1-alpine AS builder
+
+RUN apk update && apk upgrade --no-cache ca-certificates
 
 WORKDIR /app
 
@@ -23,7 +25,9 @@ COPY api/ ./api/
 RUN cd api && npm run build
 
 # ── Stage 2: Production runner ────────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:24.22.1-alpine AS runner
+
+RUN apk update && apk upgrade --no-cache ca-certificates
 
 WORKDIR /app
 
