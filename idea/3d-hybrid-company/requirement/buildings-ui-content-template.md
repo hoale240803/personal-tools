@@ -220,19 +220,73 @@ Dưới đây là nội dung chi tiết bên trong từng tòa nhà, được s�
 
 ---
 
-## PHẦN 3: BẢNG CHỌN THỨ TỰ HIỂN THỊ & GENERATE HÌNH ẢNH CHO BẠN DUYỆT
+## PHẦN 3: TRẠNG THÁI BỘ HÌNH ẢNH MẶT CẮT 2.5D CỦA 8 TÒA NHÀ TRÊN ĐẢO DREAMTECH
 
-Hiện tại chúng ta đã có hình ảnh của:
-- ✅ **Toàn đảo + Software Lab (`< /> Software Development`)** *(Ảnh gốc của bạn)*
-- ✅ **Toàn đảo + Business Center (`🤝 Sales, BD & BA`) + Nội thất Business Center** *(2 ảnh vừa tạo)*
+Toàn bộ 8 tòa nhà và tổng quan đảo **DreamTech** đã có đầy đủ hình ảnh thiết kế trong thư mục:
+- ✅ **Toàn đảo DreamTech (`DreamTech Company Island Dashboard.png` & `DreamTech Business Center Selected.jpg`)**
+- ✅ **Tòa nhà 1 — Company HQ (`Company HQ.png`)**: Trung tâm chỉ huy tối cao, FinOps & Legal.
+- ✅ **Tòa nhà 2 — Business Center (`DreamTech Business Center Interior.png`)**: Trung tâm Kinh doanh, BD & BA.
+- ✅ **Tòa nhà 3 — Project Hall (`Project Hall.png`)**: Trung tâm Điều phối Dự án, Kiến trúc & DAG.
+- ✅ **Tòa nhà 4 — Design Studio (`Design Studio.png`)**: Xưởng Thiết kế UI/UX, Brand Kit & 5-State UX.
+- ✅ **Tòa nhà 5 — Software Lab (`Software Lab.png`)**: Trung tâm Lập trình & Chế tác Code.
+- ✅ **Tòa nhà 6 — QA Center (`QA-Center.png`)**: Trung tâm Kiểm thử, Thanh tra Bề mặt thật & Bảo mật.
+- ✅ **Tòa nhà 7 — Cloud Castle (`Cloud Castle.png`)**: Pháo đài Hạ tầng, CI/CD & Bot 24/7.
+- ✅ **Tòa nhà 8 — HR House (`HR House.png`)**: Ngôi nhà Nhân sự AI, Phân phối Slot & Skill Map.
 
-Để phục vụ việc điều hành của một CEO một cách trực quan nhất, tôi đề xuất **thứ tự ưu tiên tạo hình ảnh tiếp theo** như sau:
+---
 
-| Thứ tự đề xuất | Tòa nhà / Màn hình cần tạo ảnh | Lý do CEO cần nhìn thấy màn hình này sớm nhất |
-| :--- | :--- | :--- |
-| **Ưu tiên #1** | **🧪 QA Center (`QA, Testing & Security`)** | Đây là "chốt chặn sống còn" để CEO kiểm tra bằng chứng (log, ảnh chụp màn hình thật, kết quả quét bảo mật) trước khi nghiệm thu bất kỳ task nào của Dev. |
-| **Ưu tiên #2** | **📋 Project Hall (`PM & Architecture`)** | Nơi CEO nhìn thấy bảng chia việc nguyên tử (`TASK-01.1` $\rightarrow$ `01.5`), sơ đồ không nghẽn (DAG) và cách 7 Shared Modules tiết kiệm 68% công sức code. |
-| **Ưu tiên #3** | **🏛️ Company HQ (`CEO Command Center & FinOps`)** | Màn hình tổng tư lệnh: Nơi CEO duyệt các cổng `Approval Gates`, theo dõi đồng hồ chi phí `$0 -> $10/tháng` và sức khỏe toàn bộ 22 dự án. |
-| **Ưu tiên #4** | **🏰 Cloud Castle (`DevOps & 24/7 Bots`)** | Nơi giám sát các con bot chạy ngầm 24/7 (`trading-tool`, `find-job-tool`), kiểm soát RAM/CPU tối thiểu và nút bấm `Rollback` khẩn cấp. |
-| **Ưu tiên #5** | **🎨 Design Studio (`UI/UX`)** & **🏠 HR House (`Workforce & Skill Map`)** | Hoàn thiện trọn bộ 8 tòa nhà trên đảo **DreamTech**. |
+## PHẦN 4: CƠ CHẾ DYNAMIC OFFICE LAYOUT – VĂN PHÒNG TỰ ĐỘNG BỐ TRÍ THEO SỐ LƯỢNG NHÂN VIÊN
+
+> **Bài toán thực tế:** Số lượng nhân sự và AI Agent trong mỗi phòng ban không cố định (ví dụ: *Company HQ* chỉ có 3 người, nhưng *Software Lab* lúc cao điểm chạy song song nhiều dự án có thể tăng từ 4 lên 8 hoặc 16+ Agent). Nếu dùng một bản vẽ mặt bằng tĩnh (Static Map), phòng ít người sẽ bị trống trải, còn phòng đông người sẽ bị chồng chéo bàn ghế và vỡ giao diện bong bóng thoại.
+
+### 1. Ba Cấp Độ Tự Động Co Giãn Không Gian Phòng (`Room Tier Auto-Scaling`)
+
+Hệ thống sử dụng **Isometric Modular Grid Engine** để tự động chọn kích thước mặt sàn 2.5D dựa trên tổng số nhân sự (`N`) đang thuộc biên chế phòng ban đó:
+
+| Cấp độ Layout (`Layout Tier`) | Quy mô Nhân sự (`N`) | Cấu trúc Lưới Isometric (`Grid Size`) | Cách bố trí Nội thất & Không gian 2.5D | Phòng ban tiêu biểu |
+| :--- | :---: | :---: | :--- | :--- |
+| **Tier S — `Compact Studio`** | `1 – 4` người | `2 × 2` Pods (Tối đa 4 bàn chính) | Mặt sàn gọn ấm cúng; ưu tiên diện tích cho **Bàn tròn Chiến lược / Hologram trung tâm** và các màn hình KPI khổng lồ trên tường. Luôn chừa **1 Ghost Slot (`+ Auto-Scale Slot`)** nét đứt để sẵn sàng thêm người. | `Company HQ`, `Design Studio`, `Cloud Castle`, `HR House` |
+| **Tier M — `Standard Lab`** | `5 – 8` người | `2 × 4` Pods (2 dãy bàn cụm 4) | Tự động kéo rộng mặt sàn theo trục Đông-Nam; mở lối đi chính giữa kèm logo phát sáng dưới sàn; chia thành **2 cụm bàn chuyên môn (Sub-Clusters)** đối xứng. | `Software Lab`, `QA Center`, `Business Center`, `Project Hall` |
+| **Tier L — `Mega Floor / Multi-Wing`** | `9 – 16+` người | `3 × 4` Pods + **Floor Switcher (`Tầng 1 / Tầng 2`)** | Khi vượt quá 8 bàn làm việc đồng thời, hệ thống **không nhồi nhét thêm bàn vào cùng một khung hình** (tránh chữ quá nhỏ), mà tự động: <br>1. Gom nhóm theo **Project Pod** (`Wave 1 Pod`, `Wave 2 Pod`) có thể click để Zoom.<br>2. Kích hoạt thanh chuyển tầng **`[Floor 1: Core Team (8)] [Floor 2: Scale Pods (8)]`** ngay góc phòng. | `Software Lab` (khi chạy 4+ dự án song song), `QA Center` |
+
+---
+
+### 2. Thuật Toán Tự Động Xếp Chỗ Thông Minh (`Smart Seat Allocation`)
+
+Mỗi khi có một nhân viên mới được tuyển hoặc một AI Agent mới được `spawn` vào phòng, **Dynamic Layout Engine** tự động tính toán vị trí ngồi theo 4 quy tắc:
+
+```mermaid
+flowchart LR
+    A["Nhân sự / Agent thay đổi trạng thái hoặc số lượng (N)"] --> B{"Kiểm tra Trạng thái"}
+    B -->|Working / Reviewing / Blocked| C["Xếp vào Bàn Làm Việc Chính (Active Desk Grid)"]
+    B -->|Idle / Waiting lâu (>5p)| D["Di chuyển sang Khu Nghỉ / 0-Token Hibernation Lounge"]
+    C --> E["Sắp xếp theo Vai trò & Dự án (Anchor Lead + Project Affinity)"]
+    E --> F["Tự động điều chỉnh mức hiển thị Tooltip (Adaptive LOD)"]
+```
+
+1. **Vị trí Mỏ neo (`Anchor Lead Desk`):**
+   - Trưởng bộ phận (`Manager` / `Tech Lead` / `Orchestrator`) luôn được tự động xếp ở cụm bàn trung tâm hoặc đầu luồng, gần bảng điều phối nhất (`Sprint Board`, `DAG Graph`, `Testing Dashboard`).
+2. **Gom cụm theo Dự án (`Project & Handoff Affinity`):**
+   - Các nhân sự đang làm chung một dự án (ví dụ: `01-bank-qr`) được ưu tiên xếp ngồi cùng một cụm bàn.
+   - Khi `Dev` chuyển bài cho `QA Reviewer`, mặt sàn xuất hiện đường sáng mảnh nối giữa 2 bàn để CEO nhìn thấy ngay luồng phối hợp.
+3. **Tách biệt Bàn Đang Chạy vs. Khu Ngủ Đông (`Active Desks` vs. `0-Token Lounge`):**
+   - Bàn máy tính chính chỉ dành cho các nhân sự đang **`Working`**, **`Reviewing`**, hoặc **`Blocked`**.
+   - Những nhân sự đang **`Idle`** hoặc **`Waiting`** (đã giải phóng slot LLM, tốn `$0`) sẽ tự động rời bàn máy tính và di chuyển sang **Khu Sofa / Hibernation Pods** ở rìa phòng. Nhờ vậy, một phòng có 12 nhân sự nhưng chỉ có 6 người đang chạy thực tế thì chỉ cần mở mặt bằng **Tier M (6 bàn)** thay vì làm phình phòng không cần thiết!
+4. **Ô Bàn Dự Phòng Tức Thì (`+ Ghost Expansion Slot`):**
+   - Ở các phòng chưa chạm ngưỡng tối đa của Tier, mặt sàn hiển thị 1 vị trí bàn mờ có nút **`[+ Auto-Scale Slot]`**. Khi CEO bấm vào hoặc khi Orchestrator tự động gọi thêm Agent hỗ trợ, chiếc bàn sẽ hiện hình kèm hiệu ứng lắp ráp mượt mà trong 0.5 giây.
+
+---
+
+### 3. Cơ Chế Chống Rối Mắt Khi Đông Người (`Adaptive Tooltip LOD — Level of Detail`)
+
+Để đảm bảo CEO vẫn nắm bắt được tình hình trong **3 giây** dù phòng có 3 người hay 15 người, thẻ nổi (`Speech Bubble`) trên đầu nhân vật tự động biến đổi theo mật độ:
+
+- **Mật độ Thấp (`1 – 4 người` — Chế độ `Full Detail`):**
+  - Hiển thị đầy đủ: `Chấm màu trạng thái` + `Tên công việc đang làm` + `Thanh % tiến độ`.
+- **Mật độ Trung bình (`5 – 8 người` — Chế độ `Compact Action`):**
+  - Rút gọn câu chữ thành 3–4 từ khóa chính (`Implementing OAuth... 65%`, `Fixing UI issue...`).
+- **Mật độ Cao (`9+ người` — Chế độ `Priority Exception Only`):**
+  - Chỉ bật sẵn bong bóng nổi trên đầu những nhân sự đang **`🔴 Blocked`** (Cần gỡ kẹt) hoặc **`🟡 Waiting CEO Gate`** (Cần duyệt).
+  - Các nhân sự đang **`🟢 Working`** bình thường sẽ thu gọn thành **Vòng sáng xanh dưới chân ghế + Thanh tiến độ mini trên màn hình bàn**, và chỉ bung bong bóng chi tiết khi CEO rê chuột (`Hover`) vào.
+
 

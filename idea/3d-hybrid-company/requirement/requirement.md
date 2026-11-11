@@ -140,6 +140,25 @@ Display:
 - Loading, empty, error, and disconnected states.
 - Mock data for initial prototyping.
 
+## 6.1. Dynamic Office Layout (Auto-Scaling Room & Seating Engine)
+
+To support departments with varying and dynamically changing staff/agent counts without manual map redesign or visual clutter, each department interior must implement a **Dynamic Office Layout** mechanism:
+
+1. **Automatic Room Tier Scaling (`Room Tier Auto-Scaling`)**:
+   - **Tier S (`Compact Studio` — 1 to 4 staff):** Renders a compact `2x2` isometric desk cluster with priority space for wall KPI boards and a strategy table, plus 1 dashed `+ Auto-Scale Slot` ghost desk.
+   - **Tier M (`Standard Lab` — 5 to 8 staff):** Automatically expands the isometric floor depth to `2x4` (two symmetric desk clusters with a central glowing walkway).
+   - **Tier L (`Mega Floor / Multi-Pod` — 9 to 16+ staff):** Groups desks into specialized **Project/Role Sub-Pods** and activates a **Floor / Wing Switcher (`Floor 1`, `Floor 2`)** so the isometric viewport never becomes overcrowded.
+
+2. **Smart Seat Allocation & Status Zoning**:
+   - **Anchor Lead Seat:** The Department Manager / Lead is automatically placed at the head/center desk closest to the main planning board.
+   - **Project Affinity Clustering:** Employees/Agents collaborating on the same project or in a `Dev <-> Reviewer` pair are seated in adjacent slots.
+   - **Active Desks vs. 0-Token Hibernation Lounge:** Only active states (`Working`, `Reviewing`, `Blocked`) occupy main computer desks. Staff/Agents in `Idle` or long `Waiting` states automatically transition to the room's **Sofa Lounge / 0-Token Hibernation Pods**, visually freeing up workspace and indicating `$0` token consumption.
+
+3. **Adaptive Tooltip Level-of-Detail (`Adaptive LOD`)**:
+   - **1–4 staff:** Full speech bubbles (`Status Dot + Task Name + Progress %`).
+   - **5–8 staff:** Compact action pills on active workers.
+   - **9+ staff:** Priority Exception mode — only `Blocked` and `Waiting Approval` bubbles stay pinned open; normal `Working` desks show a subtle floor ring + monitor progress bar and expand on hover.
+
 ## 7. Non-Goals
 
 - No realistic architectural 3D office.

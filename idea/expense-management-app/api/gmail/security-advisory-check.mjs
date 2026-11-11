@@ -95,7 +95,7 @@ async function checkSecurityEmails(days = 1) {
   })
 
   const gmail = google.gmail({ version: 'v1', auth })
-  const query = `newer_than:${days}d (from:(render.com OR github.com OR vercel.com OR fly.io OR google.com OR npmjs.com OR cloudflare.com) OR subject:(security OR advisory OR vulnerability OR CVE OR deprecated OR action required OR incident)) -category:promotions -category:social`
+  const query = `newer_than:${days}d (from:(render.com OR github.com OR vercel.com OR fly.io OR cloud.google.com OR npmjs.com OR cloudflare.com OR supabase.com) OR subject:(advisory OR vulnerability OR CVE)) (subject:(security OR advisory OR vulnerability OR CVE OR deprecated OR "action required" OR incident OR alert OR failed) OR from:render.com) -from:googleone-noreply@google.com -subject:"shared some Google Account data" -category:promotions -category:social`
 
   const listRes = await gmail.users.messages.list({
     userId: 'me',
@@ -127,6 +127,7 @@ async function checkSecurityEmails(days = 1) {
   }
 
   console.log(JSON.stringify({ count: results.length, query, emails: results }, null, 2))
+  return results
 }
 
 const args = process.argv.slice(2)
@@ -139,9 +140,27 @@ if (notifyIdx !== -1 && args[notifyIdx + 1]) {
 } else {
   const daysArg = args.find((a) => a.startsWith('--days='))
   const days = daysArg ? Number(daysArg.split('=')[1]) || 1 : 1
-  checkSecurityEmails(days).catch((err) => {
-    console.error(err.message)
-    process.exit(1)
-  })
+  const shouldNotify = args.includes('--notify')
+  checkSecurityEmails(days)
+    .then(async (emails) => {
+      if (shouldNotify) {
+        if (emails.length === 0) {
+          await sendTelegramNotification(
+            `ℹ️ *[Security Watcher]* Quét Gmail (${days} ngày qua): Không có email cảnh báo bảo mật mới.`,
+          )
+        } else {
+          const lines = emails.map(
+            (e, i) => `${i + 1}. *${e.subject}*\n   • Từ: \`${e.from}\`\n   • Ngày: ${e.date}`,
+          )
+          await sendTelegramNotification(
+            `🚨 *[Security Watcher]* Phát hiện *${emails.length}* email cảnh báo (${days} ngày qua):\n\n${lines.join('\n\n')}`,
+          )
+        }
+      }
+    })
+    .catch((err) => {
+      console.error(err.message)
+      process.exit(1)
+    })
 }
 
